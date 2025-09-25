@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/">
+        <file>../qml/Main.qml</file>
+        <file>../qml/Overlay.qml</file>
+        <file>../qml/AnnotationCanvas.qml</file>
+        <file>../qml/PreferencesWindow.qml</file>
+        <file>../qml/Toolbar.qml</file>
+    </qresource>
+</RCC>
