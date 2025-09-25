@@ -27,19 +27,130 @@ ProShottr is an open source, cross-platform screenshot toolkit inspired by Shott
 
 > ℹ️ The dev-container used for authoring does not bundle Qt, so `cmake` configuration fails here by design. Run the build locally on a Windows machine with Qt installed.
 
-## 🚀 Build & run (Windows)
+## �️ Complete Setup Guide (Windows)
+
+### Step 1: Install Visual Studio (C++ Compiler)
+
+1. Download **Visual Studio 2022 Community** (free) from [visualstudio.microsoft.com](https://visualstudio.microsoft.com/downloads/)
+2. During installation, select the **"Desktop development with C++"** workload
+3. This installs the MSVC compiler and CMake automatically
+4. Restart your computer after installation
+
+### Step 2: Install Qt 6 with MSVC Support
+
+1. Go to [qt.io/download-qt-installer](https://www.qt.io/download-qt-installer) and download the Qt Online Installer
+2. Run the installer and create a Qt account (free)
+3. In the installer, select **Custom Installation**
+4. Expand **Qt 6.9.2** (or latest 6.x version)
+5. **IMPORTANT**: Check **"MSVC 2022 64-bit"** (not MinGW) - this creates the required `msvc2022_64` folder
+6. You can uncheck extras like Qt PDF, Qt WebEngine, Qt Insight Tracker - they're not needed
+7. Install to the default location (`C:\Qt`)
+
+### Step 3: Open the Developer Shell
+
+1. Press **Windows key** and type **"Developer PowerShell for VS 2022"**
+2. Click to open it (this loads the MSVC compiler environment)
+3. Alternative: You can also use **"x64 Native Tools Command Prompt for VS 2022"** if you prefer cmd over PowerShell
+
+### Step 4: Verify Your Environment
+
+```powershell
+# Check if CMake is available
+cmake --version
+
+# Check if MSVC compiler is available  
+cl
+
+# You should see version info for both. If either fails, reopen the Developer PowerShell.
+```
+
+### Step 5: Clone the ProShottr Repository
+
+```powershell
+# Navigate to your development folder
+cd C:\Users\YourUsername\Documents
+
+# Clone the repository
+git clone https://github.com/MSamiulHasnat/ProShottr.git
+cd ProShottr
+```
+
+### Step 6: Configure Qt Path
+
+```powershell
+# Set the Qt path (adjust version number if different)
+$env:CMAKE_PREFIX_PATH = "C:/Qt/6.9.2/msvc2022_64"
+
+# Alternative: If you have MSVC 2019 64-bit instead
+# $env:CMAKE_PREFIX_PATH = "C:/Qt/6.9.2/msvc2019_64"
+```
+
+> **Note**: This environment variable only lasts for the current PowerShell session. You'll need to set it again each time you open a new shell.
+
+### Step 7: Build the Project
+
+```powershell
+# Clean any previous build attempts
+Remove-Item build -Recurse -Force -ErrorAction SilentlyContinue
+
+# Configure the project
+cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=$env:CMAKE_PREFIX_PATH
+
+# Build the project
+cmake --build build
+```
+
+### Step 8: Run ProShottr
+
+```powershell
+# Launch the application
+build\bin\ProShottr.exe
+```
+
+## 🚀 Quick Build & Run (For Experienced Users)
 
 ```powershell
 # From a Visual Studio Developer PowerShell
-cmake -S . -B build -G "Ninja" `
-	-DCMAKE_BUILD_TYPE=Release `
-	-DCMAKE_PREFIX_PATH="C:/Qt/6.5.3/msvc2019_64"
-
+$env:CMAKE_PREFIX_PATH = "C:/Qt/6.9.2/msvc2022_64"
+cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=$env:CMAKE_PREFIX_PATH
 cmake --build build
-
-# Launch the app
-build/bin/ProShottr.exe
+build\bin\ProShottr.exe
 ```
+
+## 🔧 Troubleshooting
+
+### "Could not find Qt6Config.cmake" Error
+
+This means Qt's MSVC kit isn't installed or CMAKE_PREFIX_PATH is wrong:
+
+1. Open `C:\Qt\MaintenanceTool.exe`
+2. Choose **"Add or remove components"**
+3. Expand your Qt version (e.g., Qt 6.9.2)
+4. Install **"MSVC 2022 64-bit"** or **"MSVC 2019 64-bit"**
+5. Update your `CMAKE_PREFIX_PATH` to point to the new `msvc*_64` folder
+
+### Alternative: Set Qt6_DIR Directly
+
+```powershell
+$env:Qt6_DIR = "C:/Qt/6.9.2/msvc2022_64/lib/cmake/Qt6"
+cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release
+```
+
+### MinGW vs MSVC
+
+If you only have `mingw_64` folders, you need to install the MSVC kit as described above. ProShottr requires MSVC for Windows-specific APIs.
+
+### Missing Developer Shell
+
+If you can't find "Developer PowerShell for VS 2022":
+1. Reinstall Visual Studio 2022 with the "Desktop development with C++" workload
+2. Or manually run: `"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat"`
+
+### Permission Issues
+
+If you get permission errors:
+1. Run the Developer PowerShell as Administrator
+2. Or choose a different build directory outside of restricted folders
 
 ### Hotkey configuration
 
