@@ -36,7 +36,7 @@ set(PROSHOTTR_SOURCES
 
 qt_add_executable(ProShottr WIN32 MACOSX_BUNDLE
     ${PROSHOTTR_SOURCES}
-    resources/proshottr.qrc
+    ${CMAKE_SOURCE_DIR}/resources/proshottr.qrc
 )
 
 qt_add_qml_module(ProShottr
