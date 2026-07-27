@@ -1,0 +1,412 @@
+{
+  "core/src/api/mod.rs": {
+    "mtime": 1784693208.1839962,
+    "ast_hash": "f7a42eb6c581dae843e3d43085ca5344",
+    "semantic_hash": "f7a42eb6c581dae843e3d43085ca5344"
+  },
+  "core/src/api/simple.rs": {
+    "mtime": 1784699319.0002632,
+    "ast_hash": "bbba6dc9f314c6a2cb2a88955ff1f6d8",
+    "semantic_hash": "bbba6dc9f314c6a2cb2a88955ff1f6d8"
+  },
+  "core/src/capture/mod.rs": {
+    "mtime": 1784728868.202194,
+    "ast_hash": "2f59ade76a9150fe4e34fc91e937f96d",
+    "semantic_hash": "2f59ade76a9150fe4e34fc91e937f96d"
+  },
+  "core/src/capture/windows.rs": {
+    "mtime": 1784728873.6208193,
+    "ast_hash": "810ed8d187d60c7577711d9a1e557e6d",
+    "semantic_hash": "810ed8d187d60c7577711d9a1e557e6d"
+  },
+  "core/src/frb_generated.rs": {
+    "mtime": 1784699704.3737216,
+    "ast_hash": "45ed834661164d8fe1f9cf99e0ddc328",
+    "semantic_hash": "45ed834661164d8fe1f9cf99e0ddc328"
+  },
+  "core/src/lib.rs": {
+    "mtime": 1784693555.7975578,
+    "ast_hash": "f1b07137e45c0486a994c042fec76631",
+    "semantic_hash": "f1b07137e45c0486a994c042fec76631"
+  },
+  "core/src/scene.rs": {
+    "mtime": 1784699562.3673987,
+    "ast_hash": "59c894ca1bb601eb2c9f0a7442019a2e",
+    "semantic_hash": "59c894ca1bb601eb2c9f0a7442019a2e"
+  },
+  "ui/lib/app.dart": {
+    "mtime": 1784694456.067051,
+    "ast_hash": "fa06a6e84f3995a935d18c2efd79c38e",
+    "semantic_hash": "fa06a6e84f3995a935d18c2efd79c38e"
+  },
+  "ui/lib/features/capture/capture_selection_overlay.dart": {
+    "mtime": 1785056668.8827226,
+    "ast_hash": "74d11ccbdccea87977c667a2dae69b44",
+    "semantic_hash": ""
+  },
+  "ui/lib/features/capture/quick_capture_view.dart": {
+    "mtime": 1785056668.8837974,
+    "ast_hash": "eccffdc5f976fc081cd1b9ee62f5746e",
+    "semantic_hash": ""
+  },
+  "ui/lib/features/editor/annotation_painter.dart": {
+    "mtime": 1784729273.8362634,
+    "ast_hash": "04ba64e05f7a9d65f4f948ed34051b42",
+    "semantic_hash": "04ba64e05f7a9d65f4f948ed34051b42"
+  },
+  "ui/lib/features/editor/editor_canvas.dart": {
+    "mtime": 1784729273.8372214,
+    "ast_hash": "94ea49b0d367ef8f97bd41990a6cdff9",
+    "semantic_hash": "94ea49b0d367ef8f97bd41990a6cdff9"
+  },
+  "ui/lib/features/editor/editor_controller.dart": {
+    "mtime": 1784729273.835198,
+    "ast_hash": "aaa9b2406be26acd49a517e164e4498c",
+    "semantic_hash": "aaa9b2406be26acd49a517e164e4498c"
+  },
+  "ui/lib/features/editor/editor_models.dart": {
+    "mtime": 1784699365.993119,
+    "ast_hash": "d49024985f9e6fbe157a11d577902032",
+    "semantic_hash": "d49024985f9e6fbe157a11d577902032"
+  },
+  "ui/lib/features/editor/editor_screen.dart": {
+    "mtime": 1785063492.9408813,
+    "ast_hash": "c1de78f84526333fa4b7ceeb4d8b7807",
+    "semantic_hash": ""
+  },
+  "ui/lib/main.dart": {
+    "mtime": 1784694456.0681195,
+    "ast_hash": "e57ecb448d8616309926e9431fe41610",
+    "semantic_hash": "e57ecb448d8616309926e9431fe41610"
+  },
+  "ui/lib/services/capture_service.dart": {
+    "mtime": 1784699310.2436392,
+    "ast_hash": "a1bbecc145ebf8c80a247829388148f5",
+    "semantic_hash": "a1bbecc145ebf8c80a247829388148f5"
+  },
+  "ui/lib/services/windows_capture_window.dart": {
+    "mtime": 1785063484.7902966,
+    "ast_hash": "0477f0fd1d85a5fc23b563d7db10f8a8",
+    "semantic_hash": ""
+  },
+  "ui/lib/src/rust/api/simple.dart": {
+    "mtime": 1784699351.5110815,
+    "ast_hash": "5efc3aeb4473c640f928715af470b2ec",
+    "semantic_hash": "5efc3aeb4473c640f928715af470b2ec"
+  },
+  "ui/lib/src/rust/capture.dart": {
+    "mtime": 1784699351.5156746,
+    "ast_hash": "a6958c9f68c3c3d497b5906d8c0ad040",
+    "semantic_hash": "a6958c9f68c3c3d497b5906d8c0ad040"
+  },
+  "ui/lib/src/rust/frb_generated.dart": {
+    "mtime": 1784699351.5216734,
+    "ast_hash": "1a7b7daddc47c460af8196b66d5b811d",
+    "semantic_hash": "1a7b7daddc47c460af8196b66d5b811d"
+  },
+  "ui/lib/src/rust/frb_generated.io.dart": {
+    "mtime": 1784699351.5236754,
+    "ast_hash": "5a0473dad83f52efff46e876c180124a",
+    "semantic_hash": "5a0473dad83f52efff46e876c180124a"
+  },
+  "ui/lib/src/rust/frb_generated.web.dart": {
+    "mtime": 1784699351.5256763,
+    "ast_hash": "85cd347838fed29fc7cfdb56bbe46950",
+    "semantic_hash": "85cd347838fed29fc7cfdb56bbe46950"
+  },
+  "ui/rust_builder/android/build.gradle": {
+    "mtime": 1784693208.1919968,
+    "ast_hash": "e1a1a573f38f715868c3eefa8a043d4d",
+    "semantic_hash": "e1a1a573f38f715868c3eefa8a043d4d"
+  },
+  "ui/rust_builder/android/settings.gradle": {
+    "mtime": 1784693208.1929975,
+    "ast_hash": "35a9a8c6fe360219ecb1f496c272cd81",
+    "semantic_hash": "35a9a8c6fe360219ecb1f496c272cd81"
+  },
+  "ui/rust_builder/cargokit/build_pod.sh": {
+    "mtime": 1784693208.1959958,
+    "ast_hash": "becc2a577f7811f2ef5f6f0d1851b949",
+    "semantic_hash": "becc2a577f7811f2ef5f6f0d1851b949"
+  },
+  "ui/rust_builder/cargokit/build_tool/bin/build_tool.dart": {
+    "mtime": 1784693208.1979969,
+    "ast_hash": "3a4b124e7d338dce40bbd1e2514ce690",
+    "semantic_hash": "3a4b124e7d338dce40bbd1e2514ce690"
+  },
+  "ui/rust_builder/cargokit/build_tool/lib/build_tool.dart": {
+    "mtime": 1784693208.1989982,
+    "ast_hash": "0935a1a42f0f8744df9a0958fa40713d",
+    "semantic_hash": "0935a1a42f0f8744df9a0958fa40713d"
+  },
+  "ui/rust_builder/cargokit/build_tool/lib/src/android_environment.dart": {
+    "mtime": 1784693208.1999958,
+    "ast_hash": "7c696ea54a98f1f579f596fa68abb207",
+    "semantic_hash": "7c696ea54a98f1f579f596fa68abb207"
+  },
+  "ui/rust_builder/cargokit/build_tool/lib/src/artifacts_provider.dart": {
+    "mtime": 1784693208.1999958,
+    "ast_hash": "5f8e20d71dd606d3a7aadc7fb6cc2cd2",
+    "semantic_hash": "5f8e20d71dd606d3a7aadc7fb6cc2cd2"
+  },
+  "ui/rust_builder/cargokit/build_tool/lib/src/build_cmake.dart": {
+    "mtime": 1784693208.206999,
+    "ast_hash": "a7c7d8030eb1cff0c0e0ce17e746c920",
+    "semantic_hash": "a7c7d8030eb1cff0c0e0ce17e746c920"
+  },
+  "ui/rust_builder/cargokit/build_tool/lib/src/build_gradle.dart": {
+    "mtime": 1784693208.2079985,
+    "ast_hash": "455bc0be86ada20d9ac65071a755c401",
+    "semantic_hash": "455bc0be86ada20d9ac65071a755c401"
+  },
+  "ui/rust_builder/cargokit/build_tool/lib/src/build_pod.dart": {
+    "mtime": 1784693208.2089975,
+    "ast_hash": "8aece6e9ba211d82901aee99a2b9938d",
+    "semantic_hash": "8aece6e9ba211d82901aee99a2b9938d"
+  },
+  "ui/rust_builder/cargokit/build_tool/lib/src/build_tool.dart": {
+    "mtime": 1784693208.2100022,
+    "ast_hash": "9104e99019e5b2f4f082494db7956724",
+    "semantic_hash": "9104e99019e5b2f4f082494db7956724"
+  },
+  "ui/rust_builder/cargokit/build_tool/lib/src/builder.dart": {
+    "mtime": 1784693208.2100022,
+    "ast_hash": "ae81e655cfec91f791c9177b6287e629",
+    "semantic_hash": "ae81e655cfec91f791c9177b6287e629"
+  },
+  "ui/rust_builder/cargokit/build_tool/lib/src/cargo.dart": {
+    "mtime": 1784693208.2109993,
+    "ast_hash": "e6827f637ef24cbee63c5483fa550c6f",
+    "semantic_hash": "e6827f637ef24cbee63c5483fa550c6f"
+  },
+  "ui/rust_builder/cargokit/build_tool/lib/src/crate_hash.dart": {
+    "mtime": 1784693208.2109993,
+    "ast_hash": "a965d32840d4c903727cc81af8853a93",
+    "semantic_hash": "a965d32840d4c903727cc81af8853a93"
+  },
+  "ui/rust_builder/cargokit/build_tool/lib/src/environment.dart": {
+    "mtime": 1784693208.2119977,
+    "ast_hash": "361cfeb6867f2b5e5c5d982143eaf5cb",
+    "semantic_hash": "361cfeb6867f2b5e5c5d982143eaf5cb"
+  },
+  "ui/rust_builder/cargokit/build_tool/lib/src/logging.dart": {
+    "mtime": 1784693208.2119977,
+    "ast_hash": "c323e5d54f2d89963b459ac02444966c",
+    "semantic_hash": "c323e5d54f2d89963b459ac02444966c"
+  },
+  "ui/rust_builder/cargokit/build_tool/lib/src/options.dart": {
+    "mtime": 1784693208.2129982,
+    "ast_hash": "5a558aa834a12ab90f10862e68c21a90",
+    "semantic_hash": "5a558aa834a12ab90f10862e68c21a90"
+  },
+  "ui/rust_builder/cargokit/build_tool/lib/src/precompile_binaries.dart": {
+    "mtime": 1784693208.2129982,
+    "ast_hash": "3ddf57529dfa39a1b8a538c6ad944592",
+    "semantic_hash": "3ddf57529dfa39a1b8a538c6ad944592"
+  },
+  "ui/rust_builder/cargokit/build_tool/lib/src/rustup.dart": {
+    "mtime": 1784693208.2139976,
+    "ast_hash": "d7cca34c2abf5bad5c41cdd95e937671",
+    "semantic_hash": "d7cca34c2abf5bad5c41cdd95e937671"
+  },
+  "ui/rust_builder/cargokit/build_tool/lib/src/target.dart": {
+    "mtime": 1784693208.2139976,
+    "ast_hash": "dbb48b15aad8dbbe85df3938333f95ab",
+    "semantic_hash": "dbb48b15aad8dbbe85df3938333f95ab"
+  },
+  "ui/rust_builder/cargokit/build_tool/lib/src/util.dart": {
+    "mtime": 1784693208.2149982,
+    "ast_hash": "ec10c54ab314e5f96f300d4abac2aa68",
+    "semantic_hash": "ec10c54ab314e5f96f300d4abac2aa68"
+  },
+  "ui/rust_builder/cargokit/build_tool/lib/src/verify_binaries.dart": {
+    "mtime": 1784693208.2149982,
+    "ast_hash": "cbb89b1455404c0aa1962663a5db7bc9",
+    "semantic_hash": "cbb89b1455404c0aa1962663a5db7bc9"
+  },
+  "ui/rust_builder/cargokit/cmake/resolve_symlinks.ps1": {
+    "mtime": 1784693208.2179992,
+    "ast_hash": "1a4fad9dc0bf8c0b871305c3c9303a4b",
+    "semantic_hash": "1a4fad9dc0bf8c0b871305c3c9303a4b"
+  },
+  "ui/rust_builder/cargokit/gradle/plugin.gradle": {
+    "mtime": 1784693208.2200015,
+    "ast_hash": "a2bcd6d564897ef879f3fb79e6cbcf42",
+    "semantic_hash": "a2bcd6d564897ef879f3fb79e6cbcf42"
+  },
+  "ui/rust_builder/cargokit/run_build_tool.sh": {
+    "mtime": 1784693208.2270293,
+    "ast_hash": "1ff3f4be31a9060a4d485c80e599a40b",
+    "semantic_hash": "1ff3f4be31a9060a4d485c80e599a40b"
+  },
+  "ui/rust_builder/ios/Classes/dummy_file.c": {
+    "mtime": 1784693208.2405596,
+    "ast_hash": "6c20ffbbec62aaf3292003a76e54f607",
+    "semantic_hash": "6c20ffbbec62aaf3292003a76e54f607"
+  },
+  "ui/rust_builder/macos/Classes/dummy_file.c": {
+    "mtime": 1784693208.2435522,
+    "ast_hash": "6c20ffbbec62aaf3292003a76e54f607",
+    "semantic_hash": "6c20ffbbec62aaf3292003a76e54f607"
+  },
+  "ui/test/editor_controller_test.dart": {
+    "mtime": 1784699555.22358,
+    "ast_hash": "ce555f86b876be6ea166a586d4d8d207",
+    "semantic_hash": "ce555f86b876be6ea166a586d4d8d207"
+  },
+  "ui/test/widget_test.dart": {
+    "mtime": 1785063668.304385,
+    "ast_hash": "fd2444b568aa61cee48e90135392bc26",
+    "semantic_hash": ""
+  },
+  "ui/windows/flutter/generated_plugin_registrant.cc": {
+    "mtime": 1784694505.33622,
+    "ast_hash": "1ff3785cf2ec027949c12a0e51362adb",
+    "semantic_hash": "1ff3785cf2ec027949c12a0e51362adb"
+  },
+  "ui/windows/flutter/generated_plugin_registrant.h": {
+    "mtime": 1784693055.3764682,
+    "ast_hash": "0ea33875f9f8e118f9c2ded03e2e2835",
+    "semantic_hash": "0ea33875f9f8e118f9c2ded03e2e2835"
+  },
+  "ui/windows/runner/flutter_window.cpp": {
+    "mtime": 1785063507.7125444,
+    "ast_hash": "f40ca0b42ecb89ca36c255ea8cfe7389",
+    "semantic_hash": ""
+  },
+  "ui/windows/runner/flutter_window.h": {
+    "mtime": 1785063496.8506331,
+    "ast_hash": "d8a543fe0c6ae2cf88a5f8c3aea4201c",
+    "semantic_hash": ""
+  },
+  "ui/windows/runner/main.cpp": {
+    "mtime": 1784702965.2561865,
+    "ast_hash": "bbf72eb292a7ce9f772a64bffaa6fcbe",
+    "semantic_hash": "bbf72eb292a7ce9f772a64bffaa6fcbe"
+  },
+  "ui/windows/runner/resource.h": {
+    "mtime": 1784692900.738304,
+    "ast_hash": "1ade5dd15e613479a15e8832ed276f2b",
+    "semantic_hash": "1ade5dd15e613479a15e8832ed276f2b"
+  },
+  "ui/windows/runner/utils.cpp": {
+    "mtime": 1784692900.739303,
+    "ast_hash": "e18900a4c2c2962ad732d3b83f0396b9",
+    "semantic_hash": "e18900a4c2c2962ad732d3b83f0396b9"
+  },
+  "ui/windows/runner/utils.h": {
+    "mtime": 1784692900.739303,
+    "ast_hash": "fd81e143f5614eb6fd75efe539002853",
+    "semantic_hash": "fd81e143f5614eb6fd75efe539002853"
+  },
+  "ui/windows/runner/win32_window.cpp": {
+    "mtime": 1784692900.7403028,
+    "ast_hash": "571eb8234dbc2661be03aa5f2a4d2fca",
+    "semantic_hash": "571eb8234dbc2661be03aa5f2a4d2fca"
+  },
+  "ui/windows/runner/win32_window.h": {
+    "mtime": 1784692900.7403028,
+    "ast_hash": "7569387d58711ab975940f4df3b4bcda",
+    "semantic_hash": "7569387d58711ab975940f4df3b4bcda"
+  },
+  ".github/workflows/windows-ci.yml": {
+    "mtime": 1785063240.074788,
+    "ast_hash": "e233c26bfccda1690fc690c456dce201",
+    "semantic_hash": ""
+  },
+  "README.md": {
+    "mtime": 1785062771.9010072,
+    "ast_hash": "4e723bf6525d74927a742ee5605f3699",
+    "semantic_hash": ""
+  },
+  "docs/architecture.md": {
+    "mtime": 1784702975.4127994,
+    "ast_hash": "cd54f6e70c7755a1b697a032dd53fa7c",
+    "semantic_hash": "cd54f6e70c7755a1b697a032dd53fa7c"
+  },
+  "feature.md": {
+    "mtime": 1784698402.071813,
+    "ast_hash": "40dcae631998d58f688da35423c5df03",
+    "semantic_hash": "40dcae631998d58f688da35423c5df03"
+  },
+  "plan.md": {
+    "mtime": 1784698203.6019945,
+    "ast_hash": "5b376bc12e35a54427417e46ffc20ade",
+    "semantic_hash": "5b376bc12e35a54427417e46ffc20ade"
+  },
+  "ui/flutter_rust_bridge.yaml": {
+    "mtime": 1784694850.5571277,
+    "ast_hash": "1beb60d2491bf3bf72214f7a064cdfe9",
+    "semantic_hash": "1beb60d2491bf3bf72214f7a064cdfe9"
+  },
+  "ui/pubspec.yaml": {
+    "mtime": 1784694456.0649376,
+    "ast_hash": "29bb9e0dff6c8af31e0ed0101c3093f7",
+    "semantic_hash": "29bb9e0dff6c8af31e0ed0101c3093f7"
+  },
+  "ui/rust_builder/cargokit/build_tool/README.md": {
+    "mtime": 1784693208.1969948,
+    "ast_hash": "18789f20b84b8e5e013a4b52bababa02",
+    "semantic_hash": "18789f20b84b8e5e013a4b52bababa02"
+  },
+  "ui/rust_builder/pubspec.yaml": {
+    "mtime": 1784693208.2435522,
+    "ast_hash": "dde583881e3ae02945692fe1b9b3ee28",
+    "semantic_hash": "dde583881e3ae02945692fe1b9b3ee28"
+  },
+  "ui/README.md": {
+    "mtime": 1784695028.5464177,
+    "ast_hash": "40d4488b661a5485f86f806608a7503a",
+    "semantic_hash": ""
+  },
+  "ui/analysis_options.yaml": {
+    "mtime": 1784694621.4882302,
+    "ast_hash": "14ebfdc2d4846ed62425aeaad0d012c2",
+    "semantic_hash": ""
+  },
+  "ui/rust_builder/README.md": {
+    "mtime": 1784693208.1909971,
+    "ast_hash": "4de0f2c6be23bcbac81a821905c52618",
+    "semantic_hash": ""
+  },
+  "ui/rust_builder/cargokit/build_tool/analysis_options.yaml": {
+    "mtime": 1784693208.1979969,
+    "ast_hash": "1239bf1a8d1b94d7720c6e1bf674ed11",
+    "semantic_hash": ""
+  },
+  "ui/rust_builder/cargokit/build_tool/pubspec.yaml": {
+    "mtime": 1784693208.2159996,
+    "ast_hash": "bd0c00f8aa6f5388b10385dfe89961ac",
+    "semantic_hash": ""
+  },
+  "ui/rust_builder/linux/CMakeLists.txt": {
+    "mtime": 1784693208.2425537,
+    "ast_hash": "902aa60a8767617561fb5af749c1482e",
+    "semantic_hash": ""
+  },
+  "ui/rust_builder/windows/CMakeLists.txt": {
+    "mtime": 1784694850.5576634,
+    "ast_hash": "04ee336099b5b5a182e342b2255bbeea",
+    "semantic_hash": ""
+  },
+  "ui/windows/CMakeLists.txt": {
+    "mtime": 1784693051.1602614,
+    "ast_hash": "a4e0f16c190cde8925e90be71282bad5",
+    "semantic_hash": ""
+  },
+  "ui/windows/flutter/CMakeLists.txt": {
+    "mtime": 1784692900.736303,
+    "ast_hash": "bbf66fed5180bd9ae8198b8d7c4a0001",
+    "semantic_hash": ""
+  },
+  "ui/windows/runner/CMakeLists.txt": {
+    "mtime": 1784692900.736303,
+    "ast_hash": "028602ab9754bffe716659ada7590d29",
+    "semantic_hash": ""
+  },
+  "installer/README.md": {
+    "mtime": 1785062771.8999238,
+    "ast_hash": "664d95ae2433a727d6195d2528e71be3",
+    "semantic_hash": ""
+  }
+}

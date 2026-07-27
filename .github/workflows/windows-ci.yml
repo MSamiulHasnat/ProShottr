@@ -1,0 +1,89 @@
+name: Windows CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate-windows:
+    runs-on: windows-latest
+    env:
+      PUB_CACHE: ${{ runner.temp }}/proshottr-pub-cache
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Check Rust formatting
+        run: cargo fmt --manifest-path core/Cargo.toml --check
+
+      - name: Lint Rust core
+        run: cargo clippy --manifest-path core/Cargo.toml --all-targets -- -D warnings
+
+      - name: Test Rust core
+        run: cargo test --manifest-path core/Cargo.toml --all-targets
+
+      - name: Resolve Flutter dependencies
+        working-directory: ui
+        run: flutter pub get
+
+      - name: Analyze Flutter UI
+        working-directory: ui
+        run: flutter analyze
+
+      - name: Test Flutter UI
+        working-directory: ui
+        run: flutter test
+
+      - name: Build Windows app
+        working-directory: ui
+        run: flutter build windows --debug
+
+  package-windows:
+    needs: validate-windows
+    runs-on: windows-latest
+    env:
+      PUB_CACHE: ${{ runner.temp }}/proshottr-pub-cache
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve Flutter dependencies
+        working-directory: ui
+        run: flutter pub get
+
+      - name: Build Windows release bundle
+        working-directory: ui
+        run: flutter build windows --release
+
+      - name: Install Inno Setup
+        shell: powershell
+        run: choco install innosetup --yes --no-progress
+
+      - name: Build Windows installer
+        shell: powershell
+        run: '& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\ProShottr.iss'
+
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: ProShottr-Windows-Installer
+          path: dist/ProShottr-Setup-*.exe
