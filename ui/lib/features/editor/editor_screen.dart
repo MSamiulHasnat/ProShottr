@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:proshottr/src/rust/capture.dart';
-import 'package:super_clipboard/super_clipboard.dart';
 
+import '../../services/capture_output_service.dart';
 import '../../services/capture_service.dart';
 import '../../services/windows_capture_window.dart';
 import '../capture/capture_selection_overlay.dart';
@@ -19,10 +19,12 @@ class EditorScreen extends StatefulWidget {
     super.key,
     this.captureService,
     this.captureWindowController,
+    this.captureOutputService,
   });
 
   final CaptureService? captureService;
   final CaptureWindowController? captureWindowController;
+  final CaptureOutputService? captureOutputService;
 
   @override
   State<EditorScreen> createState() => _EditorScreenState();
@@ -31,6 +33,7 @@ class EditorScreen extends StatefulWidget {
 class _EditorScreenState extends State<EditorScreen> {
   late final CaptureService _captureService;
   late final CaptureWindowController _captureWindow;
+  late final CaptureOutputService _output;
   final EditorController _controller = EditorController();
   final GlobalKey _exportKey = GlobalKey();
   CapturedFrame? _frame;
@@ -39,6 +42,11 @@ class _EditorScreenState extends State<EditorScreen> {
   PlatformCapabilities? _capabilities;
   _SessionMode _mode = _SessionMode.editor;
   bool _busy = false;
+  bool _preparingCapture = false;
+  bool _showLogicalPixels = false;
+  int _sessionGeneration = 0;
+  CapturedFrame? _previousFrame;
+  EditorSnapshot? _previousScene;
   String _status = 'Ready';
 
   @override
@@ -47,6 +55,8 @@ class _EditorScreenState extends State<EditorScreen> {
     _captureService = widget.captureService ?? const NativeCaptureService();
     _captureWindow =
         widget.captureWindowController ?? WindowsCaptureWindowController();
+    _output =
+        widget.captureOutputService ?? const WindowsCaptureOutputService();
     _captureWindow.setCaptureRequestedHandler(_capture);
     _captureWindow.setCaptureCancelledHandler(_cancelCaptureSession);
     _capabilities = _captureService.capabilities();
@@ -70,6 +80,7 @@ class _EditorScreenState extends State<EditorScreen> {
         onTextRequested: _requestText,
         onCancel: _cancelCaptureSession,
         onConfirm: _confirmSelection,
+        showLogicalPixels: _showLogicalPixels,
       ),
       _SessionMode.quick => QuickCaptureView(
         frame: _frame!,
@@ -83,6 +94,12 @@ class _EditorScreenState extends State<EditorScreen> {
         onDone: () => _copy(finishSession: true),
         onSave: _save,
         onOpenEditor: _openProEditor,
+        onPin: _pin,
+        onShare: _share,
+        showLogicalPixels: _showLogicalPixels,
+        onTogglePixelUnits: () => setState(() {
+          _showLogicalPixels = !_showLogicalPixels;
+        }),
       ),
       _SessionMode.editor => _buildEditorShell(),
     };
@@ -94,11 +111,45 @@ class _EditorScreenState extends State<EditorScreen> {
             _controller.undo,
         const SingleActivator(LogicalKeyboardKey.keyY, control: true):
             _controller.redo,
+        const SingleActivator(
+          LogicalKeyboardKey.keyZ,
+          control: true,
+          shift: true,
+        ): _controller.redo,
         const SingleActivator(LogicalKeyboardKey.keyC, control: true): _copy,
         const SingleActivator(LogicalKeyboardKey.keyS, control: true): _save,
+        if (_mode == _SessionMode.quick) ...{
+          const SingleActivator(LogicalKeyboardKey.enter): () =>
+              _copy(finishSession: true),
+          const SingleActivator(LogicalKeyboardKey.keyP, control: true): _pin,
+          const SingleActivator(LogicalKeyboardKey.enter, control: true):
+              _share,
+          const SingleActivator(LogicalKeyboardKey.tab): _openProEditor,
+          const SingleActivator(LogicalKeyboardKey.keyR): () =>
+              _controller.selectTool(EditorTool.rectangle),
+          const SingleActivator(LogicalKeyboardKey.keyE): () =>
+              _controller.selectTool(EditorTool.ellipse),
+          const SingleActivator(LogicalKeyboardKey.keyA): () =>
+              _controller.selectTool(EditorTool.arrow),
+          const SingleActivator(LogicalKeyboardKey.keyP): () =>
+              _controller.selectTool(EditorTool.pen),
+          const SingleActivator(LogicalKeyboardKey.keyT): () =>
+              _controller.selectTool(EditorTool.text),
+          const SingleActivator(LogicalKeyboardKey.keyM): () =>
+              _controller.selectTool(EditorTool.mosaic),
+          const SingleActivator(LogicalKeyboardKey.keyS): () =>
+              _controller.selectTool(EditorTool.sticker),
+          const SingleActivator(LogicalKeyboardKey.keyC): () =>
+              _controller.selectTool(EditorTool.crop),
+          const SingleActivator(LogicalKeyboardKey.keyC, shift: true): () =>
+              _controller.setCrop(null),
+        },
         const SingleActivator(LogicalKeyboardKey.escape): _handleEscape,
       },
-      child: Focus(autofocus: true, child: content),
+      child: Focus(
+        autofocus: true,
+        child: _mode == _SessionMode.editor ? content : Scaffold(body: content),
+      ),
     );
   }
 
@@ -127,10 +178,14 @@ class _EditorScreenState extends State<EditorScreen> {
                 ],
               ),
             ),
-            _StatusBar(
-              status: _status,
-              frame: _frame,
-              capabilities: _capabilities,
+            AnimatedBuilder(
+              animation: _controller,
+              builder: (context, child) => _StatusBar(
+                status: _status,
+                frame: _frame,
+                crop: _controller.crop,
+                capabilities: _capabilities,
+              ),
             ),
           ],
         ),
@@ -162,8 +217,12 @@ class _EditorScreenState extends State<EditorScreen> {
         !(_capabilities?.desktopCapture ?? false)) {
       return;
     }
+    final generation = ++_sessionGeneration;
+    _previousFrame = _frame;
+    _previousScene = _controller.snapshot();
     setState(() {
       _busy = true;
+      _preparingCapture = true;
       _status = 'Preparing frozen Windows capture…';
     });
     try {
@@ -173,15 +232,19 @@ class _EditorScreenState extends State<EditorScreen> {
         await _captureWindow.restoreEditor();
         return;
       }
+      if (generation != _sessionGeneration) return;
       setState(() {
         _selectionFrame = frame;
         _mode = _SessionMode.selecting;
         _busy = false;
+        _preparingCapture = false;
         _status = 'Select a region from ${frame.width} × ${frame.height}';
       });
       await WidgetsBinding.instance.endOfFrame;
+      if (!mounted || generation != _sessionGeneration) return;
       await _captureWindow.showCaptureOverlay();
     } catch (error) {
+      if (generation != _sessionGeneration) return;
       await _captureWindow.restoreEditor();
       _showError('Capture failed', error);
       if (mounted) {
@@ -189,6 +252,7 @@ class _EditorScreenState extends State<EditorScreen> {
           _mode = _SessionMode.editor;
           _selectionFrame = null;
           _busy = false;
+          _preparingCapture = false;
         });
       }
     }
@@ -199,7 +263,9 @@ class _EditorScreenState extends State<EditorScreen> {
     Rect normalizedBounds,
   ) async {
     final source = _selectionFrame;
-    if (source == null) return;
+    if (source == null || _busy) return;
+    final generation = _sessionGeneration;
+    setState(() => _busy = true);
     try {
       final cropped = await _captureService.cropFrame(
         source,
@@ -208,7 +274,7 @@ class _EditorScreenState extends State<EditorScreen> {
         pixelBounds.width.round(),
         pixelBounds.height.round(),
       );
-      if (!mounted) return;
+      if (!mounted || generation != _sessionGeneration) return;
       _controller.reset();
       setState(() {
         _frame = cropped;
@@ -217,36 +283,67 @@ class _EditorScreenState extends State<EditorScreen> {
         _status = 'Selected ${cropped.width} × ${cropped.height}';
       });
     } catch (error) {
-      _showError('Could not crop selection', error);
+      if (generation == _sessionGeneration) {
+        _showError('Could not crop selection', error);
+      }
+    } finally {
+      if (mounted && generation == _sessionGeneration) {
+        setState(() => _busy = false);
+      }
     }
   }
 
   Future<void> _cancelCaptureSession() async {
-    if (_busy) return;
+    if (!_preparingCapture &&
+        (_mode == _SessionMode.editor ||
+            (_busy && _mode != _SessionMode.selecting))) {
+      return;
+    }
+    ++_sessionGeneration;
     await _captureWindow.restoreEditor();
     if (!mounted) return;
+    final previousScene = _previousScene;
+    if (previousScene != null) _controller.restore(previousScene);
     setState(() {
+      _frame = _previousFrame;
+      _previousFrame = null;
+      _previousScene = null;
       _selectionFrame = null;
       _normalizedSelection = null;
       _mode = _SessionMode.editor;
       _status = 'Capture cancelled';
+      _busy = false;
+      _preparingCapture = false;
     });
   }
 
   Future<void> _openProEditor() async {
-    await _captureWindow.restoreEditor();
-    await _captureWindow.showEditor();
-    if (!mounted) return;
-    setState(() {
-      _selectionFrame = null;
-      _normalizedSelection = null;
-      _mode = _SessionMode.editor;
-      _status = 'Editing ${_frame?.width} × ${_frame?.height}';
-    });
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await _captureWindow.restoreEditor();
+      if (!mounted) return;
+      setState(() {
+        _previousFrame = null;
+        _previousScene = null;
+        _selectionFrame = null;
+        _normalizedSelection = null;
+        _mode = _SessionMode.editor;
+        _status = 'Editing ${_frame?.width} × ${_frame?.height}';
+      });
+      await WidgetsBinding.instance.endOfFrame;
+      if (mounted) await _captureWindow.showEditor();
+    } catch (error) {
+      _showError('Could not open editor', error);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   void _handleEscape() {
-    if (_mode == _SessionMode.editor) {
+    if (_preparingCapture) {
+      _cancelCaptureSession();
+    } else if (_mode == _SessionMode.editor) {
       _controller.reset();
     } else {
       _cancelCaptureSession();
@@ -254,30 +351,30 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 
   Future<Uint8List?> _renderPng() async {
+    if (_mode == _SessionMode.selecting) return null;
+    await WidgetsBinding.instance.endOfFrame;
     final boundary = _exportKey.currentContext?.findRenderObject();
     if (boundary is! RenderRepaintBoundary) return null;
     final image = await boundary.toImage(pixelRatio: 1);
-    final data = await image.toByteData(format: ui.ImageByteFormat.png);
-    return data?.buffer.asUint8List();
+    try {
+      final data = await image.toByteData(format: ui.ImageByteFormat.png);
+      return data?.buffer.asUint8List();
+    } finally {
+      image.dispose();
+    }
   }
 
   Future<void> _copy({bool finishSession = false}) async {
-    if (_frame == null || _busy) return;
+    if (_frame == null || _busy || _mode == _SessionMode.selecting) return;
     setState(() {
       _busy = true;
       _status = 'Rendering clipboard image…';
     });
     try {
       final bytes = await _renderPng();
-      final clipboard = SystemClipboard.instance;
       if (bytes == null) throw StateError('The editor canvas is not ready.');
-      if (clipboard == null) {
-        throw StateError('Image clipboard is unavailable.');
-      }
-      final item = DataWriterItem(suggestedName: 'ProShottr.png');
-      item.add(Formats.png(bytes));
-      await clipboard.write([item]);
-      if (finishSession) await _captureWindow.restoreEditor();
+      await _output.copyPng(bytes);
+      if (finishSession) await _finishCapture('Copied image to clipboard');
       if (mounted) {
         setState(() {
           _status = 'Copied image to clipboard';
@@ -296,7 +393,7 @@ class _EditorScreenState extends State<EditorScreen> {
   }
 
   Future<void> _save() async {
-    if (_frame == null || _busy) return;
+    if (_frame == null || _busy || _mode == _SessionMode.selecting) return;
     setState(() {
       _busy = true;
       _status = 'Saving PNG…';
@@ -304,17 +401,7 @@ class _EditorScreenState extends State<EditorScreen> {
     try {
       final bytes = await _renderPng();
       if (bytes == null) throw StateError('The editor canvas is not ready.');
-      if (_mode == _SessionMode.quick) {
-        await _captureWindow.restoreEditor();
-        if (!mounted) return;
-        setState(() {
-          _mode = _SessionMode.editor;
-          _selectionFrame = null;
-          _normalizedSelection = null;
-        });
-        await WidgetsBinding.instance.endOfFrame;
-      }
-      final path = await _captureService.savePngAs(bytes);
+      final path = await _output.savePngAs(bytes);
       if (mounted) {
         if (path == null) {
           setState(() => _status = 'Save cancelled');
@@ -328,6 +415,69 @@ class _EditorScreenState extends State<EditorScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  Future<void> _finishCapture(String status) async {
+    await _captureWindow.restoreEditor();
+    if (!mounted) return;
+    setState(() {
+      _previousFrame = null;
+      _previousScene = null;
+      _mode = _SessionMode.editor;
+      _selectionFrame = null;
+      _normalizedSelection = null;
+      _status = status;
+    });
+  }
+
+  Future<void> _pin() async {
+    if (_frame == null || _busy || _mode == _SessionMode.selecting) return;
+    setState(() => _busy = true);
+    try {
+      final bytes = await _renderPng();
+      if (bytes == null) throw StateError('The editor canvas is not ready.');
+      await _output.pinPng(bytes);
+      if (_mode == _SessionMode.quick) {
+        await _finishCapture('Pinned capture to desktop');
+      }
+    } catch (error) {
+      _showError('Pin failed', error);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _share() async {
+    if (_frame == null || _busy || _mode == _SessionMode.selecting) return;
+    final action = await showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Share capture'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 'copy'),
+            child: const ListTile(
+              leading: Icon(Icons.content_copy_rounded),
+              title: Text('Copy image'),
+              subtitle: Text('Paste into a chat, email, or document.'),
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 'save'),
+            child: const ListTile(
+              leading: Icon(Icons.save_alt_rounded),
+              title: Text('Save PNG'),
+              subtitle: Text('Choose a file to attach or share.'),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (action == 'copy') {
+      await _copy(finishSession: _mode == _SessionMode.quick);
+    }
+    if (action == 'save') await _save();
   }
 
   Future<void> _requestText(Offset point) async {
@@ -509,6 +659,7 @@ class _ToolRail extends StatelessWidget {
     (EditorTool.pen, Icons.draw_rounded, 'Pen'),
     (EditorTool.mosaic, Icons.grid_on_rounded, 'Mosaic'),
     (EditorTool.text, Icons.title_rounded, 'Text'),
+    (EditorTool.crop, Icons.crop_rounded, 'Crop'),
   ];
 
   @override
@@ -620,6 +771,29 @@ class _Inspector extends StatelessWidget {
                     controller.setFontSize(value.single),
               ),
             ],
+            if (controller.tool == EditorTool.crop ||
+                controller.crop != null) ...[
+              const SizedBox(height: 20),
+              const Text('Crop', style: TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 6),
+              Text(
+                switch (controller.crop) {
+                  final crop? =>
+                    '${crop.width.round()} × ${crop.height.round()} px '
+                        'exported',
+                  null => 'Drag on the canvas to crop',
+                },
+                style: const TextStyle(fontSize: 12, color: Color(0xFF9DA7B8)),
+              ),
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: controller.crop == null
+                    ? null
+                    : () => controller.setCrop(null),
+                icon: const Icon(Icons.crop_free_rounded, size: 17),
+                label: const Text('Reset crop'),
+              ),
+            ],
             const SizedBox(height: 16),
             OutlinedButton.icon(
               onPressed: controller.annotations.isEmpty
@@ -708,11 +882,13 @@ class _StatusBar extends StatelessWidget {
   const _StatusBar({
     required this.status,
     required this.frame,
+    required this.crop,
     required this.capabilities,
   });
 
   final String status;
   final CapturedFrame? frame;
+  final Rect? crop;
   final PlatformCapabilities? capabilities;
 
   @override
@@ -736,10 +912,12 @@ class _StatusBar extends StatelessWidget {
             ),
           ),
           if (frame case final value?)
-            Text(
-              '${value.width} × ${value.height}  •  PNG',
-              style: const TextStyle(fontSize: 12, color: Color(0xFF778294)),
-            ),
+            Text(switch (crop) {
+              final region? =>
+                '${region.width.round()} × ${region.height.round()} '
+                    'of ${value.width} × ${value.height}  •  PNG',
+              null => '${value.width} × ${value.height}  •  PNG',
+            }, style: const TextStyle(fontSize: 12, color: Color(0xFF778294))),
           const SizedBox(width: 16),
           Text(
             (capabilities?.platform ?? 'unknown').toUpperCase(),

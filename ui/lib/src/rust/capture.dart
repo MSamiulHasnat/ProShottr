@@ -6,6 +6,11 @@
 import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+/// A frozen raster plus the metadata needed to place it on the desktop.
+///
+/// `scale_factor` belongs to the display that owns most of the frame (see
+/// [`dominant_scale_factor`]); `displays` lists every display so the UI can
+/// resolve the scale under any point of a multi-monitor capture.
 class CapturedFrame {
   final Uint8List pngBytes;
   final int width;
@@ -13,6 +18,7 @@ class CapturedFrame {
   final int originX;
   final int originY;
   final double scaleFactor;
+  final List<DisplayInfo> displays;
 
   const CapturedFrame({
     required this.pngBytes,
@@ -21,6 +27,7 @@ class CapturedFrame {
     required this.originX,
     required this.originY,
     required this.scaleFactor,
+    required this.displays,
   });
 
   @override
@@ -30,7 +37,8 @@ class CapturedFrame {
       height.hashCode ^
       originX.hashCode ^
       originY.hashCode ^
-      scaleFactor.hashCode;
+      scaleFactor.hashCode ^
+      displays.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -42,7 +50,60 @@ class CapturedFrame {
           height == other.height &&
           originX == other.originX &&
           originY == other.originY &&
-          scaleFactor == other.scaleFactor;
+          scaleFactor == other.scaleFactor &&
+          displays == other.displays;
+}
+
+/// One physical display, in virtual-desktop pixels.
+///
+/// `scale_factor` is the display's effective DPI divided by 96, so a 200%
+/// monitor reports 2.0. Every geometry value stays physical; the UI divides by
+/// the scale only when the user asks for logical units.
+class DisplayInfo {
+  final String id;
+  final String name;
+  final int originX;
+  final int originY;
+  final int width;
+  final int height;
+  final double scaleFactor;
+  final bool isPrimary;
+
+  const DisplayInfo({
+    required this.id,
+    required this.name,
+    required this.originX,
+    required this.originY,
+    required this.width,
+    required this.height,
+    required this.scaleFactor,
+    required this.isPrimary,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^
+      name.hashCode ^
+      originX.hashCode ^
+      originY.hashCode ^
+      width.hashCode ^
+      height.hashCode ^
+      scaleFactor.hashCode ^
+      isPrimary.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DisplayInfo &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          name == other.name &&
+          originX == other.originX &&
+          originY == other.originY &&
+          width == other.width &&
+          height == other.height &&
+          scaleFactor == other.scaleFactor &&
+          isPrimary == other.isPrimary;
 }
 
 class PlatformCapabilities {

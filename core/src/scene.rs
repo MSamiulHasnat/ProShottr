@@ -77,6 +77,11 @@ pub struct SceneDocument {
     pub canvas_width: u32,
     pub canvas_height: u32,
     pub annotations: Vec<Annotation>,
+    /// Visible region of the base image in physical pixels. `None` shows the
+    /// whole image. A crop is part of the document rather than a raster edit,
+    /// so annotations keep their base-image coordinates and it can be undone.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub crop: Option<Rect>,
 }
 
 impl SceneDocument {
@@ -86,6 +91,18 @@ impl SceneDocument {
             canvas_width,
             canvas_height,
             annotations: Vec::new(),
+            crop: None,
+        }
+    }
+
+    /// Size of the exported raster: the crop when present, else the canvas.
+    pub fn export_size(&self) -> (u32, u32) {
+        match self.crop {
+            Some(crop) => (
+                crop.width.round().max(1.0) as u32,
+                crop.height.round().max(1.0) as u32,
+            ),
+            None => (self.canvas_width, self.canvas_height),
         }
     }
 
@@ -122,6 +139,16 @@ impl SceneHistory {
         self.undo.push(self.current.clone());
         self.redo.clear();
         self.current.annotations.push(annotation);
+    }
+
+    /// Crops (or, with `None`, un-crops) the document as one undoable step.
+    pub fn set_crop(&mut self, crop: Option<Rect>) {
+        if self.current.crop == crop {
+            return;
+        }
+        self.undo.push(self.current.clone());
+        self.redo.clear();
+        self.current.crop = crop;
     }
 
     pub fn undo(&mut self) -> bool {
@@ -193,5 +220,44 @@ mod tests {
         assert!(history.undo());
         history.push_annotation(rectangle());
         assert!(!history.redo());
+    }
+
+    #[test]
+    fn crop_is_an_undoable_document_step_that_sets_the_export_size() {
+        let crop = Rect {
+            left: 100.0,
+            top: 50.0,
+            width: 640.0,
+            height: 480.0,
+        };
+        let mut history = SceneHistory::new(SceneDocument::new(1920, 1080));
+        history.push_annotation(rectangle());
+        history.set_crop(Some(crop));
+        assert_eq!(history.current().export_size(), (640, 480));
+        assert_eq!(history.current().annotations.len(), 1);
+        // Setting the same crop again is not a history entry.
+        history.set_crop(Some(crop));
+        assert!(history.undo());
+        assert_eq!(history.current().crop, None);
+        assert_eq!(history.current().export_size(), (1920, 1080));
+        assert!(history.redo());
+        assert_eq!(history.current().crop, Some(crop));
+    }
+
+    #[test]
+    fn documents_without_a_crop_still_load() {
+        let json = r#"{"version":1,"canvas_width":10,"canvas_height":5,"annotations":[]}"#;
+        let document = SceneDocument::from_json(json).unwrap();
+        assert_eq!(document.crop, None);
+        assert!(!document.to_json().unwrap().contains("crop"));
+        let mut cropped = document.clone();
+        cropped.crop = Some(Rect {
+            left: 1.0,
+            top: 1.0,
+            width: 4.0,
+            height: 2.0,
+        });
+        let json = cropped.to_json().unwrap();
+        assert_eq!(SceneDocument::from_json(&json).unwrap(), cropped);
     }
 }

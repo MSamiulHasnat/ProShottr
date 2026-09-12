@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/gestures.dart';
@@ -19,6 +20,7 @@ class CaptureSelectionOverlay extends StatefulWidget {
     required this.onTextRequested,
     required this.onCancel,
     required this.onConfirm,
+    this.showLogicalPixels = false,
   });
 
   final CapturedFrame frame;
@@ -26,6 +28,7 @@ class CaptureSelectionOverlay extends StatefulWidget {
   final CaptureWindowController windowController;
   final Future<void> Function(Offset point) onTextRequested;
   final VoidCallback onCancel;
+  final bool showLogicalPixels;
   final Future<void> Function(Rect pixelBounds, Rect normalizedBounds)
   onConfirm;
 
@@ -45,8 +48,10 @@ class _CaptureSelectionOverlayState extends State<CaptureSelectionOverlay> {
   ByteData? _pixels;
   Size _viewSize = Size.zero;
   bool _confirming = false;
+  bool _copying = false;
+  bool _dismissed = false;
   Timer? _windowDetectionTimer;
-  Timer? _cursorRebuildTimer;
+  int? _cursorFrameCallback;
   int _windowDetectionRequest = 0;
 
   @override
@@ -62,7 +67,9 @@ class _CaptureSelectionOverlayState extends State<CaptureSelectionOverlay> {
   @override
   void dispose() {
     _windowDetectionTimer?.cancel();
-    _cursorRebuildTimer?.cancel();
+    if (_cursorFrameCallback case final callback?) {
+      WidgetsBinding.instance.cancelFrameCallbackWithId(callback);
+    }
     _decodedImage?.dispose();
     super.dispose();
   }
@@ -88,8 +95,21 @@ class _CaptureSelectionOverlayState extends State<CaptureSelectionOverlay> {
   Widget build(BuildContext context) {
     return CallbackShortcuts(
       bindings: {
-        const SingleActivator(LogicalKeyboardKey.escape): widget.onCancel,
+        const SingleActivator(LogicalKeyboardKey.escape): _cancel,
         const SingleActivator(LogicalKeyboardKey.enter): _confirm,
+        const SingleActivator(LogicalKeyboardKey.keyC): () => _copyColor(),
+        const SingleActivator(LogicalKeyboardKey.keyC, shift: true): () =>
+            _copyColor(rgb: true),
+        for (final shift in [false, true]) ...{
+          SingleActivator(LogicalKeyboardKey.arrowLeft, shift: shift): () =>
+              _nudgeSelection(shift ? -10 : -1, 0),
+          SingleActivator(LogicalKeyboardKey.arrowRight, shift: shift): () =>
+              _nudgeSelection(shift ? 10 : 1, 0),
+          SingleActivator(LogicalKeyboardKey.arrowUp, shift: shift): () =>
+              _nudgeSelection(0, shift ? -10 : -1),
+          SingleActivator(LogicalKeyboardKey.arrowDown, shift: shift): () =>
+              _nudgeSelection(0, shift ? 10 : 1),
+        },
       },
       child: Focus(
         autofocus: true,
@@ -99,7 +119,7 @@ class _CaptureSelectionOverlayState extends State<CaptureSelectionOverlay> {
             builder: (context, constraints) {
               _viewSize = constraints.biggest;
               return MouseRegion(
-                cursor: SystemMouseCursors.precise,
+                cursor: SystemMouseCursors.none,
                 onHover: (event) => _cursorMoved(event.localPosition),
                 child: Stack(
                   fit: StackFit.expand,
@@ -122,10 +142,11 @@ class _CaptureSelectionOverlayState extends State<CaptureSelectionOverlay> {
                     ),
                     IgnorePointer(
                       child: CustomPaint(
+                        key: const ValueKey('capture-selection-paint'),
                         painter: _SelectionPainter(
                           selection: _selection,
                           windowHighlight: _windowHighlight,
-                          cursor: _cursor,
+                          cursor: _pixelCenter(_cursor),
                         ),
                       ),
                     ),
@@ -137,6 +158,7 @@ class _CaptureSelectionOverlayState extends State<CaptureSelectionOverlay> {
                     ],
                     const Positioned(
                       left: 18,
+                      right: 18,
                       bottom: 18,
                       child: _SelectionHint(),
                     ),
@@ -177,19 +199,24 @@ class _CaptureSelectionOverlayState extends State<CaptureSelectionOverlay> {
   }
 
   Widget _buildCoordinateHud() {
-    final pixel = _toPixel(_cursor);
-    final x = widget.frame.originX + pixel.dx.round();
-    final y = widget.frame.originY + pixel.dy.round();
-    final hex = _hexAt(pixel);
-    const hudWidth = 180.0;
+    final pixel = _samplePixel(_cursor);
+    final x = widget.frame.originX + pixel.dx.toInt();
+    final y = widget.frame.originY + pixel.dy.toInt();
+    final scale = _scaleAt(pixel);
+    final sample = _sampleAt(pixel);
+    final hudWidth = math.min(196.0, math.max(0.0, _viewSize.width - 16));
+    const hudHeight = 98.0;
     final placeLeft = _cursor.dx + 18 + hudWidth < _viewSize.width;
     final left = placeLeft ? _cursor.dx + 18 : _cursor.dx - hudWidth - 8;
-    final top = (_cursor.dy + 18).clamp(8, _viewSize.height - 62).toDouble();
+    final top = _cursor.dy + 18 + hudHeight < _viewSize.height
+        ? _cursor.dy + 18
+        : _cursor.dy - hudHeight - 8;
     return Positioned(
-      left: left.clamp(8, _viewSize.width - hudWidth - 8).toDouble(),
-      top: top,
+      left: left.clamp(0, math.max(0, _viewSize.width - hudWidth)).toDouble(),
+      top: top.clamp(0, math.max(0, _viewSize.height - hudHeight)).toDouble(),
       child: IgnorePointer(
         child: Container(
+          key: const ValueKey('capture-pixel-probe'),
           width: hudWidth,
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
           decoration: BoxDecoration(
@@ -209,7 +236,14 @@ class _CaptureSelectionOverlayState extends State<CaptureSelectionOverlay> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('LOC  $x,$y'),
+                Text(
+                  'LOC ${_displayPixels(x, scale)},'
+                  '${_displayPixels(y, scale)}${_scaleSuffix(scale)}',
+                ),
+                const SizedBox(height: 3),
+                Text('HEX ${sample?.hex ?? '#------'}'),
+                const SizedBox(height: 3),
+                Text('RGB ${sample?.channels ?? '—, —, —'}'),
                 const SizedBox(height: 3),
                 Row(
                   children: [
@@ -217,12 +251,18 @@ class _CaptureSelectionOverlayState extends State<CaptureSelectionOverlay> {
                       width: 10,
                       height: 10,
                       decoration: BoxDecoration(
-                        color: _colorAt(pixel),
+                        color: sample?.color ?? Colors.transparent,
                         border: Border.all(color: Colors.white54),
                       ),
                     ),
                     const SizedBox(width: 6),
-                    Text('HEX  $hex'),
+                    const Expanded(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text('C / Shift+C to copy'),
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -235,6 +275,9 @@ class _CaptureSelectionOverlayState extends State<CaptureSelectionOverlay> {
 
   Widget _buildDimensionLabel(Rect selection) {
     final pixels = _toPixelRect(selection);
+    // A selection spanning monitors is labelled in the units of the display
+    // under its centre; the pixel values themselves stay physical.
+    final scale = _scaleAt(_samplePixel(selection.center));
     final top = selection.top > 34 ? selection.top - 30 : selection.top + 8;
     return Positioned(
       left: selection.left,
@@ -247,7 +290,8 @@ class _CaptureSelectionOverlayState extends State<CaptureSelectionOverlay> {
             borderRadius: BorderRadius.circular(5),
           ),
           child: Text(
-            '${pixels.width.round()} × ${pixels.height.round()}',
+            '${_displayPixels(pixels.width, scale)} × '
+            '${_displayPixels(pixels.height, scale)}${_scaleSuffix(scale)}',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 11,
@@ -260,7 +304,16 @@ class _CaptureSelectionOverlayState extends State<CaptureSelectionOverlay> {
   }
 
   void _pointerDown(PointerDownEvent event) {
-    if (_confirming || event.buttons != kPrimaryButton) return;
+    if (event.buttons == kSecondaryButton) {
+      _cancel();
+      return;
+    }
+    if (_dismissed ||
+        _copying ||
+        _confirming ||
+        event.buttons != kPrimaryButton) {
+      return;
+    }
     final point = _clampPoint(event.localPosition);
     _cursorMoved(point);
     _dragStart = point;
@@ -273,8 +326,13 @@ class _CaptureSelectionOverlayState extends State<CaptureSelectionOverlay> {
   }
 
   void _pointerMove(PointerMoveEvent event) {
+    if (_dismissed || _copying || _confirming) return;
     final point = _clampPoint(event.localPosition);
     _cursorMoved(point);
+    _updateSelection(point);
+  }
+
+  void _updateSelection(Offset point) {
     final start = _dragStart;
     final original = _dragSelection;
     if (start == null) {
@@ -322,19 +380,88 @@ class _CaptureSelectionOverlayState extends State<CaptureSelectionOverlay> {
   }
 
   void _pointerUp(PointerUpEvent event) {
-    if (_dragStart == null) return;
+    if (_dismissed || _copying || _confirming || _dragStart == null) return;
     final point = _clampPoint(event.localPosition);
     final start = _dragStart!;
     final moved = (point - start).distance >= 8;
     _cursorMoved(point);
-    final autoWindow = _windowHighlight;
     final valid = _finishDrag();
     if (valid) {
       _confirm();
-    } else if (!moved && autoWindow != null) {
-      setState(() => _selection = autoWindow);
-      _confirm();
+    } else if (!moved) {
+      _selectWindowAt(point);
     }
+  }
+
+  void _nudgeSelection(int dx, int dy) {
+    final selection = _selection;
+    if (_dismissed || _confirming || _copying || selection == null) return;
+    final delta = Offset(
+      dx * _viewSize.width / widget.frame.width,
+      dy * _viewSize.height / widget.frame.height,
+    );
+    if (_dragStart != null) {
+      _cursorMoved(_cursor + delta);
+      _updateSelection(_cursor);
+      return;
+    }
+    final minWidth = _viewSize.width / widget.frame.width;
+    final minHeight = _viewSize.height / widget.frame.height;
+    setState(() {
+      _selection = Rect.fromLTRB(
+        selection.left,
+        selection.top,
+        (selection.right + delta.dx).clamp(
+          selection.left + minWidth,
+          _viewSize.width,
+        ),
+        (selection.bottom + delta.dy).clamp(
+          selection.top + minHeight,
+          _viewSize.height,
+        ),
+      );
+    });
+  }
+
+  void _cancel() {
+    if (_dismissed) return;
+    _dismissed = true;
+    _windowDetectionTimer?.cancel();
+    _windowDetectionRequest++;
+    widget.onCancel();
+  }
+
+  Future<void> _copyColor({bool rgb = false}) async {
+    if (_dismissed || _copying || _confirming) return;
+    final sample = _sampleAt(_samplePixel(_cursor));
+    if (sample == null) return;
+    _copying = true;
+    try {
+      await Clipboard.setData(
+        ClipboardData(text: rgb ? 'rgb(${sample.channels})' : sample.hex),
+      );
+      if (mounted) _cancel();
+    } on PlatformException {
+      // Leave the capture usable if the clipboard is temporarily unavailable.
+    } finally {
+      _copying = false;
+    }
+  }
+
+  Future<void> _selectWindowAt(Offset point) async {
+    if (_dismissed || _confirming || _copying) return;
+    _windowDetectionTimer?.cancel();
+    _windowDetectionTimer = null;
+    final request = ++_windowDetectionRequest;
+    _confirming = true;
+    final detected = await _detectWindow(point);
+    if (!mounted || _dismissed) return;
+    _confirming = false;
+    if (request != _windowDetectionRequest) return;
+    final selection = _toViewRect(detected);
+    if (selection == null) return;
+    setState(() => _selection = selection);
+    await _confirm();
   }
 
   bool _finishDrag() {
@@ -379,7 +506,13 @@ class _CaptureSelectionOverlayState extends State<CaptureSelectionOverlay> {
 
   Future<void> _confirm() async {
     final selection = _selection;
-    if (selection == null || _confirming) return;
+    if (selection == null ||
+        selection.isEmpty ||
+        _confirming ||
+        _copying ||
+        _dismissed) {
+      return;
+    }
     setState(() => _confirming = true);
     try {
       final normalized = Rect.fromLTRB(
@@ -395,29 +528,54 @@ class _CaptureSelectionOverlayState extends State<CaptureSelectionOverlay> {
   }
 
   void _cursorMoved(Offset value) {
+    if (_dismissed || _copying || _confirming) return;
     final point = _clampPoint(value);
     _cursor = point;
+    _windowDetectionRequest++;
+    if (_windowHighlight?.contains(point) == false) _windowHighlight = null;
     _scheduleWindowDetection();
-    if (_cursorRebuildTimer != null) return;
-    _cursorRebuildTimer = Timer(const Duration(milliseconds: 16), () {
-      _cursorRebuildTimer = null;
+    if (_cursorFrameCallback != null) return;
+    _cursorFrameCallback = WidgetsBinding.instance.scheduleFrameCallback((_) {
+      _cursorFrameCallback = null;
       if (mounted) setState(() {});
     });
   }
 
   void _scheduleWindowDetection() {
-    _windowDetectionTimer?.cancel();
-    final request = ++_windowDetectionRequest;
+    if (_windowDetectionTimer != null ||
+        _dragStart != null ||
+        _selection != null) {
+      return;
+    }
     _windowDetectionTimer = Timer(const Duration(milliseconds: 35), () async {
-      final pixel = _toPixel(_cursor);
-      final detected = await widget.windowController.windowAtPoint(
-        widget.frame.originX + pixel.dx.round(),
-        widget.frame.originY + pixel.dy.round(),
-      );
-      if (!mounted || request != _windowDetectionRequest) return;
+      _windowDetectionTimer = null;
+      if (_dragStart != null || _selection != null || _dismissed) return;
+      final request = _windowDetectionRequest;
+      final detected = await _detectWindow(_cursor);
+      if (!mounted ||
+          _dismissed ||
+          request != _windowDetectionRequest ||
+          _dragStart != null ||
+          _selection != null) {
+        return;
+      }
       final next = _toViewRect(detected);
       if (next != _windowHighlight) setState(() => _windowHighlight = next);
     });
+  }
+
+  Future<WindowBounds?> _detectWindow(Offset point) async {
+    final pixel = _samplePixel(point);
+    try {
+      return await widget.windowController.windowAtPoint(
+        widget.frame.originX + pixel.dx.toInt(),
+        widget.frame.originY + pixel.dy.toInt(),
+      );
+    } on MissingPluginException {
+      return null;
+    } on PlatformException {
+      return null;
+    }
   }
 
   Rect? _toViewRect(WindowBounds? bounds) {
@@ -478,29 +636,83 @@ class _CaptureSelectionOverlayState extends State<CaptureSelectionOverlay> {
     );
   }
 
-  Color _colorAt(Offset pixel) {
-    final data = _pixels;
-    final image = _decodedImage;
-    if (data == null || image == null) return Colors.transparent;
-    final x = pixel.dx.floor().clamp(0, image.width - 1);
-    final y = pixel.dy.floor().clamp(0, image.height - 1);
-    final offset = (y * image.width + x) * 4;
-    return Color.fromARGB(
-      data.getUint8(offset + 3),
-      data.getUint8(offset),
-      data.getUint8(offset + 1),
-      data.getUint8(offset + 2),
+  Offset _samplePixel(Offset value) {
+    final pixel = _toPixel(value);
+    return Offset(
+      pixel.dx.floor().clamp(0, widget.frame.width - 1).toDouble(),
+      pixel.dy.floor().clamp(0, widget.frame.height - 1).toDouble(),
     );
   }
 
-  String _hexAt(Offset pixel) {
-    final color = _colorAt(pixel);
-    if (_pixels == null) return '#------';
+  Offset _pixelCenter(Offset value) {
+    final pixel = _samplePixel(value);
+    return Offset(
+      (pixel.dx + 0.5) * _viewSize.width / widget.frame.width,
+      (pixel.dy + 0.5) * _viewSize.height / widget.frame.height,
+    );
+  }
+
+  /// Scale factor of the display that owns a frame pixel. Captures that
+  /// carry no display list fall back to the frame's dominant scale.
+  double _scaleAt(Offset pixel) {
+    final x = widget.frame.originX + pixel.dx.toInt();
+    final y = widget.frame.originY + pixel.dy.toInt();
+    for (final display in widget.frame.displays) {
+      if (x >= display.originX &&
+          x < display.originX + display.width &&
+          y >= display.originY &&
+          y < display.originY + display.height) {
+        final scale = display.scaleFactor;
+        return scale.isFinite && scale > 0 ? scale : widget.frame.scaleFactor;
+      }
+    }
+    return widget.frame.scaleFactor;
+  }
+
+  String _displayPixels(num value, double scale) {
+    if (!widget.showLogicalPixels || !scale.isFinite || scale <= 0) {
+      return value.round().toString();
+    }
+    return (value / scale)
+        .toStringAsFixed(2)
+        .replaceFirst(RegExp(r'\.?0+$'), '');
+  }
+
+  String _scaleSuffix(double scale) {
+    if (!scale.isFinite || scale <= 0 || (scale - 1).abs() < 0.001) return '';
+    return ' @${scale.toStringAsFixed(2).replaceFirst(RegExp(r'\.?0+$'), '')}x';
+  }
+
+  _PixelSample? _sampleAt(Offset pixel) {
+    final data = _pixels;
+    final image = _decodedImage;
+    if (data == null || image == null) return null;
+    final x = pixel.dx.floor().clamp(0, image.width - 1);
+    final y = pixel.dy.floor().clamp(0, image.height - 1);
+    final offset = (y * image.width + x) * 4;
+    return _PixelSample(
+      data.getUint8(offset),
+      data.getUint8(offset + 1),
+      data.getUint8(offset + 2),
+      data.getUint8(offset + 3),
+    );
+  }
+}
+
+class _PixelSample {
+  const _PixelSample(this.red, this.green, this.blue, this.alpha);
+
+  final int red;
+  final int green;
+  final int blue;
+  final int alpha;
+
+  Color get color => Color.fromARGB(alpha, red, green, blue);
+  String get channels => '$red, $green, $blue';
+
+  String get hex {
     String byte(int value) => value.toRadixString(16).padLeft(2, '0');
-    return '#${byte((color.r * 255).round())}'
-            '${byte((color.g * 255).round())}'
-            '${byte((color.b * 255).round())}'
-        .toUpperCase();
+    return '#${byte(red)}${byte(green)}${byte(blue)}'.toUpperCase();
   }
 }
 
@@ -549,10 +761,11 @@ class _SelectionPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final selected = selection;
     if (selected == null) {
-      canvas.drawRect(
-        Offset.zero & size,
-        Paint()..color = const Color(0x66000000),
-      );
+      final shade = Path()
+        ..fillType = PathFillType.evenOdd
+        ..addRect(Offset.zero & size);
+      if (windowHighlight case final highlight?) shade.addRect(highlight);
+      canvas.drawPath(shade, Paint()..color = const Color(0x66000000));
       if (windowHighlight case final highlight?) {
         canvas.drawRect(
           highlight,
@@ -567,7 +780,7 @@ class _SelectionPainter extends CustomPainter {
         ..fillType = PathFillType.evenOdd
         ..addRect(Offset.zero & size)
         ..addRect(selected);
-      canvas.drawPath(shade, Paint()..color = const Color(0x99000000));
+      canvas.drawPath(shade, Paint()..color = const Color(0x66000000));
       canvas.drawRect(
         selected,
         Paint()
@@ -597,19 +810,27 @@ class _SelectionPainter extends CustomPainter {
       }
     }
 
-    final crosshair = Paint()
-      ..color = const Color(0xCCFFFFFF)
-      ..strokeWidth = 1;
-    canvas.drawLine(
-      Offset(cursor.dx - 10, cursor.dy),
-      Offset(cursor.dx + 10, cursor.dy),
-      crosshair,
-    );
-    canvas.drawLine(
-      Offset(cursor.dx, cursor.dy - 10),
-      Offset(cursor.dx, cursor.dy + 10),
-      crosshair,
-    );
+    // A dark outline keeps the pixel-exact crosshair visible over both light
+    // and dark windows after their dimming wash has been removed.
+    for (final crosshair in [
+      Paint()
+        ..color = const Color(0xCC000000)
+        ..strokeWidth = 3,
+      Paint()
+        ..color = Colors.white
+        ..strokeWidth = 1,
+    ]) {
+      canvas.drawLine(
+        Offset(cursor.dx - 10, cursor.dy),
+        Offset(cursor.dx + 10, cursor.dy),
+        crosshair,
+      );
+      canvas.drawLine(
+        Offset(cursor.dx, cursor.dy - 10),
+        Offset(cursor.dx, cursor.dy + 10),
+        crosshair,
+      );
+    }
   }
 
   @override
@@ -632,7 +853,7 @@ class _SelectionHint extends StatelessWidget {
           borderRadius: BorderRadius.circular(7),
         ),
         child: const Text(
-          'Hover a window to highlight it  •  click to capture  •  drag for a region  •  Esc to cancel',
+          'Hover a window to highlight it  •  click to capture  •  drag for a region  •  C / Shift+C to copy color  •  Esc / right-click to cancel',
           style: TextStyle(color: Color(0xFFD7DCE5), fontSize: 11),
         ),
       ),

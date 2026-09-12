@@ -320,6 +320,11 @@ Legend: ✅ full · ⚠️ partial/indirect · ❌ absent
 
 **The ProShottr opportunity:** combine WeChat's *speed-to-share* simplicity with Shottr's *pro-precision toolset* — a fast default path for casual users, with pro tools (scrolling capture, OCR, measurement, color) one keypress away, delivered cross-platform.
 
+**Where the two flow-critical surfaces are specified.** The borrowed capture trigger and the borrowed annotation toolbar are no longer described only as feature rows — each has a literal build spec in the plan, including the places ProShottr deliberately goes past WeChat:
+- [`plan.md` §8.8](plan.md#88-capture-trigger-overlay--the-pre-selection-stage-spec) — the capture overlay: dim wash over the frozen desktop, drawn `+` crosshair, a probe box carrying coordinates, hex **and RGB** with a swatch (WeChat shows coordinates and hex only), hover window detection that re-runs across app boundaries, one-click window capture, drag-for-region.
+- [`plan.md` §8.9](plan.md#89-post-capture-editing-toolbar--the-quick-hud-layout-spec) — the post-capture editing toolbar: four button groups (draw tools, content tools, output, session end), the style sub-toolbars, enable/disable rules, anchoring, the narrow-selection overflow behavior, and the `W × H` resolution badge that appears over the capture with the bar.
+- [`plan.md` §8.10](plan.md#810-windowing-model--the-capture-session-is-an-overlay-never-an-app-window) — the rule underneath both: a capture session is an overlay, not an application window. No taskbar button, no Alt-Tab entry, no visible main window until the user deliberately opens an editing surface. Both source apps behave this way; the plan section makes it an explicit, testable requirement rather than an assumption.
+
 ---
 
 ## Sources

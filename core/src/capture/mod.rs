@@ -13,7 +13,12 @@ use thiserror::Error;
 #[cfg(windows)]
 mod windows;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// One physical display, in virtual-desktop pixels.
+///
+/// `scale_factor` is the display's effective DPI divided by 96, so a 200%
+/// monitor reports 2.0. Every geometry value stays physical; the UI divides by
+/// the scale only when the user asks for logical units.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DisplayInfo {
     pub id: String,
     pub name: String,
@@ -21,9 +26,63 @@ pub struct DisplayInfo {
     pub origin_y: i32,
     pub width: u32,
     pub height: u32,
+    pub scale_factor: f64,
     pub is_primary: bool,
 }
 
+impl DisplayInfo {
+    /// Physical pixels of this display inside a virtual-desktop rectangle.
+    fn overlap_area(&self, left: i32, top: i32, width: u32, height: u32) -> u64 {
+        let overlap_left = i64::from(self.origin_x).max(i64::from(left));
+        let overlap_top = i64::from(self.origin_y).max(i64::from(top));
+        let overlap_right = (i64::from(self.origin_x) + i64::from(self.width))
+            .min(i64::from(left) + i64::from(width));
+        let overlap_bottom = (i64::from(self.origin_y) + i64::from(self.height))
+            .min(i64::from(top) + i64::from(height));
+        if overlap_right <= overlap_left || overlap_bottom <= overlap_top {
+            return 0;
+        }
+        ((overlap_right - overlap_left) * (overlap_bottom - overlap_top)) as u64
+    }
+}
+
+/// Scale factor of the display that owns the largest part of a rectangle.
+///
+/// Ties prefer the primary display, then enumeration order. `default` is
+/// returned when no display is known or the rectangle touches none of them.
+pub fn dominant_scale_factor(
+    displays: &[DisplayInfo],
+    left: i32,
+    top: i32,
+    width: u32,
+    height: u32,
+    default: f64,
+) -> f64 {
+    let mut best: Option<(&DisplayInfo, u64)> = None;
+    for display in displays {
+        let area = display.overlap_area(left, top, width, height);
+        if area == 0 {
+            continue;
+        }
+        let better = match best {
+            None => true,
+            Some((current, current_area)) => {
+                area > current_area
+                    || (area == current_area && display.is_primary && !current.is_primary)
+            }
+        };
+        if better {
+            best = Some((display, area));
+        }
+    }
+    best.map_or(default, |(display, _)| display.scale_factor)
+}
+
+/// A frozen raster plus the metadata needed to place it on the desktop.
+///
+/// `scale_factor` belongs to the display that owns most of the frame (see
+/// [`dominant_scale_factor`]); `displays` lists every display so the UI can
+/// resolve the scale under any point of a multi-monitor capture.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CapturedFrame {
     pub png_bytes: Vec<u8>,
@@ -32,6 +91,7 @@ pub struct CapturedFrame {
     pub origin_x: i32,
     pub origin_y: i32,
     pub scale_factor: f64,
+    pub displays: Vec<DisplayInfo>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -66,7 +126,7 @@ pub fn platform_capabilities() -> PlatformCapabilities {
         desktop_capture: cfg!(windows),
         region_overlay: cfg!(windows),
         global_hotkey: cfg!(windows),
-        pin_window: false,
+        pin_window: cfg!(windows),
     }
 }
 
@@ -112,13 +172,27 @@ pub fn crop_frame(
     let cropped = source.crop_imm(left, top, width, height).to_rgba8();
     let png_bytes = encode_png_fast(&cropped)?;
 
+    let origin_x = frame.origin_x.saturating_add(left as i32);
+    let origin_y = frame.origin_y.saturating_add(top as i32);
+    // A crop can move entirely onto another monitor, so its scale is resolved
+    // again from the display list rather than inherited from the desktop.
+    let scale_factor = dominant_scale_factor(
+        &frame.displays,
+        origin_x,
+        origin_y,
+        width,
+        height,
+        frame.scale_factor,
+    );
+
     Ok(CapturedFrame {
         png_bytes,
         width,
         height,
-        origin_x: frame.origin_x.saturating_add(left as i32),
-        origin_y: frame.origin_y.saturating_add(top as i32),
-        scale_factor: frame.scale_factor,
+        origin_x,
+        origin_y,
+        scale_factor,
+        displays: frame.displays,
     })
 }
 
@@ -196,24 +270,84 @@ mod tests {
         assert!(!platform_capabilities().platform.is_empty());
     }
 
-    #[test]
-    fn crops_a_frame_and_updates_its_origin() {
-        let source = image::RgbaImage::from_pixel(4, 3, image::Rgba([1, 2, 3, 255]));
+    fn display(
+        id: &str,
+        origin_x: i32,
+        width: u32,
+        scale_factor: f64,
+        primary: bool,
+    ) -> DisplayInfo {
+        DisplayInfo {
+            id: id.to_owned(),
+            name: id.to_owned(),
+            origin_x,
+            origin_y: 0,
+            width,
+            height: 100,
+            scale_factor,
+            is_primary: primary,
+        }
+    }
+
+    fn frame(width: u32, height: u32, displays: Vec<DisplayInfo>) -> CapturedFrame {
+        let source = image::RgbaImage::from_pixel(width, height, image::Rgba([1, 2, 3, 255]));
         let mut png_bytes = Vec::new();
         image::DynamicImage::ImageRgba8(source)
             .write_to(&mut Cursor::new(&mut png_bytes), image::ImageFormat::Png)
             .unwrap();
-        let frame = CapturedFrame {
+        CapturedFrame {
             png_bytes,
-            width: 4,
-            height: 3,
+            width,
+            height,
             origin_x: -10,
             origin_y: 20,
             scale_factor: 1.0,
-        };
+            displays,
+        }
+    }
 
-        let cropped = crop_frame(frame, 1, 1, 2, 2).unwrap();
+    #[test]
+    fn crops_a_frame_and_updates_its_origin() {
+        let cropped = crop_frame(frame(4, 3, Vec::new()), 1, 1, 2, 2).unwrap();
         assert_eq!((cropped.width, cropped.height), (2, 2));
         assert_eq!((cropped.origin_x, cropped.origin_y), (-9, 21));
+        assert_eq!(cropped.scale_factor, 1.0);
+        assert!(cropped.displays.is_empty());
+    }
+
+    #[test]
+    fn dominant_scale_follows_the_display_owning_most_of_the_rectangle() {
+        let displays = vec![
+            display("left", -200, 200, 1.0, false),
+            display("primary", 0, 300, 2.0, true),
+        ];
+        assert_eq!(
+            dominant_scale_factor(&displays, -150, 10, 100, 10, 9.0),
+            1.0
+        );
+        assert_eq!(dominant_scale_factor(&displays, 10, 10, 100, 10, 9.0), 2.0);
+        // Mostly on the left display, even though it also touches the primary.
+        assert_eq!(dominant_scale_factor(&displays, -90, 10, 100, 10, 9.0), 1.0);
+        // An even split prefers the primary display.
+        assert_eq!(dominant_scale_factor(&displays, -50, 10, 100, 10, 9.0), 2.0);
+        // Off every display, or with no displays known, keeps the default.
+        assert_eq!(dominant_scale_factor(&displays, 500, 500, 10, 10, 9.0), 9.0);
+        assert_eq!(dominant_scale_factor(&[], 10, 10, 10, 10, 9.0), 9.0);
+    }
+
+    #[test]
+    fn cropping_onto_another_display_resolves_that_display_scale() {
+        // The frame spans x = -10..=5 in virtual coordinates: the left display
+        // at 1x owns -10..0 and the right display at 2.5x owns 0..15.
+        let displays = vec![
+            display("left", -10, 10, 1.0, true),
+            display("right", 0, 15, 2.5, false),
+        ];
+        let source = frame(15, 3, displays.clone());
+        let left = crop_frame(source.clone(), 0, 0, 8, 3).unwrap();
+        assert_eq!(left.scale_factor, 1.0);
+        let right = crop_frame(source, 11, 0, 4, 3).unwrap();
+        assert_eq!(right.scale_factor, 2.5);
+        assert_eq!(right.displays, displays);
     }
 }

@@ -6,36 +6,38 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::{ffi::OsStr, fs};
 
 use image::RgbaImage;
+use windows::Win32::Foundation::{LPARAM, RECT};
 use windows::Win32::Graphics::Gdi::{
     BI_RGB, BITMAPINFO, BITMAPINFOHEADER, BitBlt, CAPTUREBLT, CreateCompatibleBitmap,
-    CreateCompatibleDC, DIB_RGB_COLORS, DeleteDC, DeleteObject, GetDC, GetDIBits, ReleaseDC,
-    SRCCOPY, SelectObject,
+    CreateCompatibleDC, DIB_RGB_COLORS, DeleteDC, DeleteObject, EnumDisplayMonitors, GetDC,
+    GetDIBits, GetMonitorInfoW, HDC, HMONITOR, MONITORINFOEXW, ReleaseDC, SRCCOPY, SelectObject,
 };
 use windows::Win32::UI::Controls::Dialogs::{
     CommDlgExtendedError, GetSaveFileNameW, OFN_NOCHANGEDIR, OFN_OVERWRITEPROMPT,
     OFN_PATHMUSTEXIST, OPENFILENAMEW,
 };
+use windows::Win32::UI::HiDpi::{GetDpiForMonitor, GetDpiForSystem, MDT_EFFECTIVE_DPI};
 use windows::Win32::UI::WindowsAndMessaging::{
     GetSystemMetrics, SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN,
 };
-use windows::core::{PCWSTR, PWSTR};
+use windows::core::{BOOL, PCWSTR, PWSTR};
 
-use super::{CaptureError, CapturedFrame, DisplayInfo, ScreenCapturer};
+use super::{CaptureError, CapturedFrame, DisplayInfo, ScreenCapturer, dominant_scale_factor};
+
+/// `MONITORINFO::dwFlags` bit that marks the primary display.
+const MONITORINFOF_PRIMARY: u32 = 1;
 
 pub struct WindowsCapturer;
 
 impl ScreenCapturer for WindowsCapturer {
     fn displays(&self) -> Result<Vec<DisplayInfo>, CaptureError> {
+        let displays = enumerate_displays();
+        if !displays.is_empty() {
+            return Ok(displays);
+        }
+        // A session without attached monitors still exposes a virtual desktop.
         let bounds = virtual_screen_bounds()?;
-        Ok(vec![DisplayInfo {
-            id: "virtual-desktop".to_owned(),
-            name: "Windows virtual desktop".to_owned(),
-            origin_x: bounds.x,
-            origin_y: bounds.y,
-            width: bounds.width,
-            height: bounds.height,
-            is_primary: true,
-        }])
+        Ok(vec![virtual_desktop_display(&bounds)])
     }
 
     fn capture_desktop(&self) -> Result<CapturedFrame, CaptureError> {
@@ -115,7 +117,7 @@ impl ScreenCapturer for WindowsCapturer {
             }
         }
 
-        for pixel in bgra.chunks_exact_mut(4) {
+        for pixel in bgra.as_chunks_mut::<4>().0 {
             pixel.swap(0, 2);
             pixel[3] = 255;
         }
@@ -125,13 +127,24 @@ impl ScreenCapturer for WindowsCapturer {
         })?;
         let png_bytes = super::encode_png_fast(&rgba)?;
 
+        let displays = enumerate_displays();
+        let scale_factor = dominant_scale_factor(
+            &displays,
+            bounds.x,
+            bounds.y,
+            bounds.width,
+            bounds.height,
+            system_scale_factor(),
+        );
+
         Ok(CapturedFrame {
             png_bytes,
             width: bounds.width,
             height: bounds.height,
             origin_x: bounds.x,
             origin_y: bounds.y,
-            scale_factor: 1.0,
+            scale_factor,
+            displays,
         })
     }
 }
@@ -141,6 +154,89 @@ struct ScreenBounds {
     y: i32,
     width: u32,
     height: u32,
+}
+
+fn virtual_desktop_display(bounds: &ScreenBounds) -> DisplayInfo {
+    DisplayInfo {
+        id: "virtual-desktop".to_owned(),
+        name: "Windows virtual desktop".to_owned(),
+        origin_x: bounds.x,
+        origin_y: bounds.y,
+        width: bounds.width,
+        height: bounds.height,
+        scale_factor: system_scale_factor(),
+        is_primary: true,
+    }
+}
+
+/// System DPI as a scale factor; 1.0 when Windows reports nothing usable.
+fn system_scale_factor() -> f64 {
+    let dpi = unsafe { GetDpiForSystem() };
+    if dpi == 0 { 1.0 } else { f64::from(dpi) / 96.0 }
+}
+
+/// Every attached display with its effective per-monitor DPI.
+///
+/// The runner declares PerMonitorV2 awareness, so `rcMonitor` is reported in
+/// the same physical virtual-desktop pixels that `BitBlt` captures.
+fn enumerate_displays() -> Vec<DisplayInfo> {
+    unsafe extern "system" fn visit(
+        monitor: HMONITOR,
+        _device: HDC,
+        _clip: *mut RECT,
+        data: LPARAM,
+    ) -> BOOL {
+        // SAFETY: `data` is the `Vec<DisplayInfo>` pointer passed to
+        // `EnumDisplayMonitors` below, and the enumeration is synchronous.
+        let displays = unsafe { &mut *(data.0 as *mut Vec<DisplayInfo>) };
+        let mut info = MONITORINFOEXW::default();
+        info.monitorInfo.cbSize = size_of::<MONITORINFOEXW>() as u32;
+        // SAFETY: `info` starts with the `MONITORINFO` header Windows fills in,
+        // and `cbSize` tells Windows the extended device name is present too.
+        if !unsafe { GetMonitorInfoW(monitor, &mut info.monitorInfo) }.as_bool() {
+            return BOOL(1);
+        }
+        let area = info.monitorInfo.rcMonitor;
+        let width = area.right.saturating_sub(area.left);
+        let height = area.bottom.saturating_sub(area.top);
+        if width <= 0 || height <= 0 {
+            return BOOL(1);
+        }
+
+        let mut dpi_x = 0_u32;
+        let mut dpi_y = 0_u32;
+        // SAFETY: both out-pointers reference live locals.
+        let dpi = unsafe { GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y) };
+        let scale_factor = match dpi {
+            Ok(()) if dpi_x > 0 => f64::from(dpi_x) / 96.0,
+            _ => system_scale_factor(),
+        };
+
+        let name_length = info
+            .szDevice
+            .iter()
+            .position(|unit| *unit == 0)
+            .unwrap_or(info.szDevice.len());
+        let name = String::from_utf16_lossy(&info.szDevice[..name_length]);
+        displays.push(DisplayInfo {
+            id: name.clone(),
+            name,
+            origin_x: area.left,
+            origin_y: area.top,
+            width: width as u32,
+            height: height as u32,
+            scale_factor,
+            is_primary: info.monitorInfo.dwFlags & MONITORINFOF_PRIMARY != 0,
+        });
+        BOOL(1)
+    }
+
+    let mut displays: Vec<DisplayInfo> = Vec::new();
+    // SAFETY: the callback only touches `displays` through the pointer passed
+    // here, and only while this call is running.
+    let _ =
+        unsafe { EnumDisplayMonitors(None, None, Some(visit), LPARAM(&raw mut displays as isize)) };
+    displays
 }
 
 fn virtual_screen_bounds() -> Result<ScreenBounds, CaptureError> {

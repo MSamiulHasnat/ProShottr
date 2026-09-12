@@ -180,8 +180,11 @@ Win32Window::MessageHandler(HWND hwnd,
                             LPARAM const lparam) noexcept {
   switch (message) {
     case WM_DESTROY:
+      // Native cleanup (tray icon, hotkey registration, pins) still needs the
+      // HWND. Do it before clearing the handle, without recursively destroying
+      // the window which is already being destroyed by Windows.
+      OnDestroy();
       window_handle_ = nullptr;
-      Destroy();
       if (quit_on_close_) {
         PostQuitMessage(0);
       }
@@ -208,7 +211,9 @@ Win32Window::MessageHandler(HWND hwnd,
     }
 
     case WM_ACTIVATE:
-      if (child_content_ != nullptr) {
+      // Deactivation includes an owned Save As dialog taking focus. Focusing
+      // the Flutter child then would immediately steal focus back from it.
+      if (LOWORD(wparam) != WA_INACTIVE && child_content_ != nullptr) {
         SetFocus(child_content_);
       }
       return 0;

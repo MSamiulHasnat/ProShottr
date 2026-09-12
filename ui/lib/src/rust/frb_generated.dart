@@ -300,8 +300,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   CapturedFrame dco_decode_captured_frame(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 6)
-      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return CapturedFrame(
       pngBytes: dco_decode_list_prim_u_8_strict(arr[0]),
       width: dco_decode_u_32(arr[1]),
@@ -309,6 +309,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       originX: dco_decode_i_32(arr[3]),
       originY: dco_decode_i_32(arr[4]),
       scaleFactor: dco_decode_f_64(arr[5]),
+      displays: dco_decode_list_display_info(arr[6]),
+    );
+  }
+
+  @protected
+  DisplayInfo dco_decode_display_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    return DisplayInfo(
+      id: dco_decode_String(arr[0]),
+      name: dco_decode_String(arr[1]),
+      originX: dco_decode_i_32(arr[2]),
+      originY: dco_decode_i_32(arr[3]),
+      width: dco_decode_u_32(arr[4]),
+      height: dco_decode_u_32(arr[5]),
+      scaleFactor: dco_decode_f_64(arr[6]),
+      isPrimary: dco_decode_bool(arr[7]),
     );
   }
 
@@ -322,6 +341,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   int dco_decode_i_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
+  }
+
+  @protected
+  List<DisplayInfo> dco_decode_list_display_info(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>).map(dco_decode_display_info).toList();
   }
 
   @protected
@@ -405,6 +430,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_originX = sse_decode_i_32(deserializer);
     var var_originY = sse_decode_i_32(deserializer);
     var var_scaleFactor = sse_decode_f_64(deserializer);
+    var var_displays = sse_decode_list_display_info(deserializer);
     return CapturedFrame(
       pngBytes: var_pngBytes,
       width: var_width,
@@ -412,6 +438,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       originX: var_originX,
       originY: var_originY,
       scaleFactor: var_scaleFactor,
+      displays: var_displays,
+    );
+  }
+
+  @protected
+  DisplayInfo sse_decode_display_info(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_id = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_originX = sse_decode_i_32(deserializer);
+    var var_originY = sse_decode_i_32(deserializer);
+    var var_width = sse_decode_u_32(deserializer);
+    var var_height = sse_decode_u_32(deserializer);
+    var var_scaleFactor = sse_decode_f_64(deserializer);
+    var var_isPrimary = sse_decode_bool(deserializer);
+    return DisplayInfo(
+      id: var_id,
+      name: var_name,
+      originX: var_originX,
+      originY: var_originY,
+      width: var_width,
+      height: var_height,
+      scaleFactor: var_scaleFactor,
+      isPrimary: var_isPrimary,
     );
   }
 
@@ -425,6 +475,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   int sse_decode_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return deserializer.buffer.getInt32();
+  }
+
+  @protected
+  List<DisplayInfo> sse_decode_list_display_info(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DisplayInfo>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_display_info(deserializer));
+    }
+    return ans_;
   }
 
   @protected
@@ -518,6 +580,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.originX, serializer);
     sse_encode_i_32(self.originY, serializer);
     sse_encode_f_64(self.scaleFactor, serializer);
+    sse_encode_list_display_info(self.displays, serializer);
+  }
+
+  @protected
+  void sse_encode_display_info(DisplayInfo self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.id, serializer);
+    sse_encode_String(self.name, serializer);
+    sse_encode_i_32(self.originX, serializer);
+    sse_encode_i_32(self.originY, serializer);
+    sse_encode_u_32(self.width, serializer);
+    sse_encode_u_32(self.height, serializer);
+    sse_encode_f_64(self.scaleFactor, serializer);
+    sse_encode_bool(self.isPrimary, serializer);
   }
 
   @protected
@@ -530,6 +606,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   void sse_encode_i_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     serializer.buffer.putInt32(self);
+  }
+
+  @protected
+  void sse_encode_list_display_info(
+    List<DisplayInfo> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_display_info(item, serializer);
+    }
   }
 
   @protected

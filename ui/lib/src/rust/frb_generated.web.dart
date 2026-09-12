@@ -34,10 +34,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CapturedFrame dco_decode_captured_frame(dynamic raw);
 
   @protected
+  DisplayInfo dco_decode_display_info(dynamic raw);
+
+  @protected
   double dco_decode_f_64(dynamic raw);
 
   @protected
   int dco_decode_i_32(dynamic raw);
+
+  @protected
+  List<DisplayInfo> dco_decode_list_display_info(dynamic raw);
 
   @protected
   List<int> dco_decode_list_prim_u_8_loose(dynamic raw);
@@ -75,10 +81,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CapturedFrame sse_decode_captured_frame(SseDeserializer deserializer);
 
   @protected
+  DisplayInfo sse_decode_display_info(SseDeserializer deserializer);
+
+  @protected
   double sse_decode_f_64(SseDeserializer deserializer);
 
   @protected
   int sse_decode_i_32(SseDeserializer deserializer);
+
+  @protected
+  List<DisplayInfo> sse_decode_list_display_info(SseDeserializer deserializer);
 
   @protected
   List<int> sse_decode_list_prim_u_8_loose(SseDeserializer deserializer);
@@ -119,10 +131,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_captured_frame(CapturedFrame self, SseSerializer serializer);
 
   @protected
+  void sse_encode_display_info(DisplayInfo self, SseSerializer serializer);
+
+  @protected
   void sse_encode_f_64(double self, SseSerializer serializer);
 
   @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_display_info(
+    List<DisplayInfo> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_prim_u_8_loose(List<int> self, SseSerializer serializer);

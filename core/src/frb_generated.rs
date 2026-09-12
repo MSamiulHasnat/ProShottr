@@ -273,6 +273,7 @@ impl SseDecode for crate::capture::CapturedFrame {
         let mut var_originX = <i32>::sse_decode(deserializer);
         let mut var_originY = <i32>::sse_decode(deserializer);
         let mut var_scaleFactor = <f64>::sse_decode(deserializer);
+        let mut var_displays = <Vec<crate::capture::DisplayInfo>>::sse_decode(deserializer);
         return crate::capture::CapturedFrame {
             png_bytes: var_pngBytes,
             width: var_width,
@@ -280,6 +281,31 @@ impl SseDecode for crate::capture::CapturedFrame {
             origin_x: var_originX,
             origin_y: var_originY,
             scale_factor: var_scaleFactor,
+            displays: var_displays,
+        };
+    }
+}
+
+impl SseDecode for crate::capture::DisplayInfo {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_id = <String>::sse_decode(deserializer);
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_originX = <i32>::sse_decode(deserializer);
+        let mut var_originY = <i32>::sse_decode(deserializer);
+        let mut var_width = <u32>::sse_decode(deserializer);
+        let mut var_height = <u32>::sse_decode(deserializer);
+        let mut var_scaleFactor = <f64>::sse_decode(deserializer);
+        let mut var_isPrimary = <bool>::sse_decode(deserializer);
+        return crate::capture::DisplayInfo {
+            id: var_id,
+            name: var_name,
+            origin_x: var_originX,
+            origin_y: var_originY,
+            width: var_width,
+            height: var_height,
+            scale_factor: var_scaleFactor,
+            is_primary: var_isPrimary,
         };
     }
 }
@@ -295,6 +321,18 @@ impl SseDecode for i32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         deserializer.cursor.read_i32::<NativeEndian>().unwrap()
+    }
+}
+
+impl SseDecode for Vec<crate::capture::DisplayInfo> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::capture::DisplayInfo>::sse_decode(deserializer));
+        }
+        return ans_;
     }
 }
 
@@ -401,6 +439,7 @@ impl flutter_rust_bridge::IntoDart for crate::capture::CapturedFrame {
             self.origin_x.into_into_dart().into_dart(),
             self.origin_y.into_into_dart().into_dart(),
             self.scale_factor.into_into_dart().into_dart(),
+            self.displays.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -410,6 +449,30 @@ impl flutter_rust_bridge::IntoIntoDart<crate::capture::CapturedFrame>
     for crate::capture::CapturedFrame
 {
     fn into_into_dart(self) -> crate::capture::CapturedFrame {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::capture::DisplayInfo {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.id.into_into_dart().into_dart(),
+            self.name.into_into_dart().into_dart(),
+            self.origin_x.into_into_dart().into_dart(),
+            self.origin_y.into_into_dart().into_dart(),
+            self.width.into_into_dart().into_dart(),
+            self.height.into_into_dart().into_dart(),
+            self.scale_factor.into_into_dart().into_dart(),
+            self.is_primary.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::capture::DisplayInfo {}
+impl flutter_rust_bridge::IntoIntoDart<crate::capture::DisplayInfo>
+    for crate::capture::DisplayInfo
+{
+    fn into_into_dart(self) -> crate::capture::DisplayInfo {
         self
     }
 }
@@ -461,6 +524,21 @@ impl SseEncode for crate::capture::CapturedFrame {
         <i32>::sse_encode(self.origin_x, serializer);
         <i32>::sse_encode(self.origin_y, serializer);
         <f64>::sse_encode(self.scale_factor, serializer);
+        <Vec<crate::capture::DisplayInfo>>::sse_encode(self.displays, serializer);
+    }
+}
+
+impl SseEncode for crate::capture::DisplayInfo {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.id, serializer);
+        <String>::sse_encode(self.name, serializer);
+        <i32>::sse_encode(self.origin_x, serializer);
+        <i32>::sse_encode(self.origin_y, serializer);
+        <u32>::sse_encode(self.width, serializer);
+        <u32>::sse_encode(self.height, serializer);
+        <f64>::sse_encode(self.scale_factor, serializer);
+        <bool>::sse_encode(self.is_primary, serializer);
     }
 }
 
@@ -475,6 +553,16 @@ impl SseEncode for i32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         serializer.cursor.write_i32::<NativeEndian>(self).unwrap();
+    }
+}
+
+impl SseEncode for Vec<crate::capture::DisplayInfo> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::capture::DisplayInfo>::sse_encode(item, serializer);
+        }
     }
 }
 

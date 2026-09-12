@@ -36,7 +36,7 @@
 
 ### Product goals
 - **Universal:** Android, Windows, macOS, Linux (both X11 and Wayland).
-- **Fast:** capture-to-editor under ~200 ms on desktop (Shottr's bar is ~165 ms).
+- **Fast:** capture-to-editor under ~100 ms on desktop (Shottr's bar is ~165 ms).
 - **Two-speed UX:** a "Quick" flow for casual sharing; a "Pro" editor for precision.
 - **Local-first:** everything works offline; cloud is optional and opt-in.
 - **Consistent, non-destructive editing:** annotations are re-editable vector objects, never baked in until export.
@@ -217,8 +217,9 @@ Every feature from [feature.md](feature.md), mapped to a module, cross-platform 
 | Global hotkey capture | Both | `hotkeys`+`capture` | 🟡 | P0 | Desktop native; Android = bubble/tile; Wayland = portal |
 | Screen-freeze on capture | WeChat | `capture` | 🟢 | P0 | Snapshot then overlay a frozen bitmap |
 | Region / area select | Both | `capture`+`OverlayHost` | 🟡 | P0 | Wayland region select is compositor-mediated |
-| Live pixel-coordinate + HEX color readout under cursor, pre-drag | WeChat | `capture`+`measure` | 🟢 | P1 | Verified: crosshair shows `LOC x,y` / `HEX #rrggbb` before you drag; effectively a free color-picker built into the selection step — see §6.8.1 |
-| Auto window/UI detection on hover | Both | `capture` | 🟡 | P1 | Win/macOS/X11 window trees; Wayland limited |
+| **Dimmed frozen-screen overlay + `+` crosshair** | WeChat(+) | `capture`+`OverlayHost` | 🟢 | P0 | On trigger the whole virtual desktop freezes and dims; a `+` crosshair marks the exact sampled pixel; the hovered window un-dims. Full spec: §8.8 |
+| **Live cursor probe: coordinates + HEX + RGB, pre-drag** | WeChat(+) | `capture`+`measure` | 🟢 | P0 | A small box tracks the crosshair showing `LOC x,y`, `HEX #rrggbb` **and `RGB r,g,b`** before any drag — a free color-picker built into the selection step. WeChat shows LOC+HEX only (§6.8.1); the RGB line and swatch chip are ProShottr additions. Full spec: §8.8 |
+| Auto window/UI detection on hover + **one-click window capture** | Both | `capture` | 🟡 | P0 | Detection re-runs whenever the crosshair crosses into a different window — same app or another app; a single left click captures the highlighted window, and click-and-drag overrides detection with a free region. Win/macOS/X11 window trees; Wayland limited. Full spec: §8.8 |
 | Window capture (shadow/trim/backdrop) | Shottr | `capture`+`imageops` | 🟡 | P1 | |
 | Fullscreen capture | Shottr | `capture` | 🟢 | P0 | |
 | Multi-monitor / Retina/DPI aware | Shottr | `capture` | 🟡 | P0 | Per-display scale factors |
@@ -281,7 +282,7 @@ Every feature from [feature.md](feature.md), mapped to a module, cross-platform 
 | Screen ruler (h/v) | Shottr | `measure` | 🟡 | P2 |
 | Distance between objects | Shottr | `measure` | 🟡 | P2 |
 | Logical↔physical px toggle | Shottr | `measure` | 🟢 | P2 |
-| Color picker (HEX/OKLCH) | Shottr | `measure`+`ClipboardService` | 🟡 | P2 |
+| Color picker (HEX/RGB/OKLCH) | Shottr | `measure`+`ClipboardService` | 🟡 | P2 (HEX+RGB inside the capture overlay is P0 — §8.8) |
 | Copy text color / average color | Shottr | `measure` | 🟢 | P2 |
 | Contrast checker (WCAG/APCA) | Shottr | `measure` | 🟢 | P2 |
 | Screen magnifier / pixel zoom | Shottr | `measure`+UI | 🟡 | P2 |
@@ -292,13 +293,14 @@ Every feature from [feature.md](feature.md), mapped to a module, cross-platform 
 |---|---|---|---|---|---|
 | Copy to clipboard | Both | `share` | 🟢 | P0 | Verified: WeChat's green "Done" (✓) check button is the copy-to-clipboard confirm — completing the capture without an explicit save/send copies the annotated PNG. |
 | Save to file / dedicated folder | Both | `store` | 🟢 | P0 | **Verified default behavior:** WeChat's Save opens a native OS save dialog pre-filled with a **timestamp-based filename** (e.g. `22_132136_668.png`) defaulting to a `Desktop\Temp`-style folder — i.e. it still prompts every time rather than silently auto-saving. ProShottr should offer both: a WeChat-style "prompt with smart default name/folder" **and** the Shottr-style silent auto-save toggle (row below). |
-| **Send directly to destination/chat** | WeChat | `share` | 🟡 | P1 | OS share sheet + app deep-links; WeChat's signature flow. **Verification note:** during hands-on exploration this button was deliberately *not* clicked to confirm its exact semantics (immediate send vs. attach-to-compose-box), because doing so on a live account risks actually posting an image to a real contact/group — re-verify in a disposable/test chat before finalizing the deep-link UX copy. |
-| Pin to screen (float, always-on-top) | Both | `OverlayHost` | 🟡 | P1 | **Verified:** WeChat's pin produces a small, freely movable, always-on-top window with its own minimize + close controls (not just a borderless overlay) — model the pin surface as a lightweight real window, see §6.8.4. |
+| **Send directly to destination/chat** | WeChat | `share` | 🟡 | P1 | OS share sheet + app deep-links; WeChat's signature flow. **Verification note:** during hands-on exploration this button was deliberately *not* clicked to confirm its exact semantics (immediate send vs. attach-to-compose-box), because doing so on a live account risks actually posting an image to a real contact/group — re-verify in a disposable/test chat before finalizing the deep-link UX copy. Surfaced as the share button in the Quick HUD action group (§8.9). |
+| Pin to screen (float, always-on-top) | Both | `OverlayHost` | 🟡 | P1 | **Verified:** WeChat's pin produces a small, freely movable, always-on-top window with its own minimize + close controls (not just a borderless overlay) — model the pin surface as a lightweight real window, see §6.8.4. Surfaced as the pin button in the Quick HUD action group (§8.9). |
 | Pin scroll-to-resize | Shottr | `OverlayHost` | 🟢 | P2 | |
 | Auto-save / auto-copy | Shottr | `store` | 🟢 | P1 | |
 | S3-compatible upload + manage | Shottr | `share` | 🟢 | P2 | |
 | Drag-and-drop export | Shottr | `share` | 🟡 | P2 | Desktop drag payloads |
-| Hide app window during capture | WeChat | `capture` | 🟢 | P1 | |
+| Hide app window during capture | WeChat | `capture` | 🟢 | P0 | Stronger than hiding: the whole capture session presents no app window at all — no taskbar button, no Alt-Tab entry — until the user explicitly opens an editing surface. Full rule: §8.10 |
+| Capture resolution badge over the capture | Both | `capture`+UI | 🟢 | P0 | `W × H` in physical pixels, shown with the editing toolbar, anchored to the capture's top-left. §8.9 |
 
 ### 6.7 Platform, automation, prefs
 
@@ -447,6 +449,199 @@ On a narrow selection, the toolbar's icon layout can shift/compress — in one t
 ### 8.7 Global hotkeys & the quick-share flow
 - Desktop: real global hotkeys. Android/Wayland: substitute triggers (bubble/tile/portal).
 - **Quick flow (WeChat-style, verified spec in §6.8):** capture → live coordinate/color crosshair while selecting → minimal floating toolbar (rect [filled], ellipse [outline], sticker picker, arrow, brush, mosaic [manual + AI-masking toggle], text, undo) → primary button = **Send/Share** (OS sharesheet or configured target), secondary = copy/save/pin. Pro editor is one keypress away for the deep toolset.
+- Both stages of that flow have literal, implementable specs of their own: **§8.8** for the capture-trigger overlay (dim, crosshair, probe box, window auto-detect) and **§8.9** for the post-capture editing toolbar.
+
+### 8.8 Capture-trigger overlay — the pre-selection stage (spec)
+
+This is everything that happens between pressing the capture hotkey and choosing what to capture. It is a P0 surface: it is the first thing a user sees every single time, so it carries the precision affordances (crosshair, probe box) rather than hiding them in a separate color-picker mode.
+
+**Presentation rule.** This overlay, and the Quick HUD that follows it, are not an application window — see **§8.10** for the full rule and its per-platform mechanics.
+
+**Trigger.** Default `Alt+Shift+S` on desktop, remappable (§6.7). Windows registers it via `RegisterHotKey` on the hidden message window (§7.1); macOS via `RegisterEventHotKey`; X11 via `XGrabKey`; Wayland via the `GlobalShortcuts` portal where the compositor supports it. Android substitutes bubble/tile/notification (§7.5).
+
+**State machine.**
+
+| State | Entered by | What is on screen |
+|---|---|---|
+| `Armed` | hotkey fires, frozen frame ready | Dimmed frozen desktop, crosshair, probe box, no selection |
+| `WindowHover` | crosshair rests inside a detected window | Same, plus that window's rect un-dimmed and outlined |
+| `Dragging` | primary button held and moved | Live rect un-dimmed, `w × h` label tracking it, probe box still live |
+| `Selected` | drag released (or window clicked) | Rect with 8 resize handles, hand-off to the Quick HUD (§8.9) |
+| `Dismissed` | `Esc`, right-click, or focus loss | Overlay torn down, original window state restored |
+
+**Dimming and the crosshair.**
+- The overlay paints the frozen full-virtual-desktop frame (§8.1), then a uniform dark wash (~40% black) over everything. The point is legibility of intent: the desktop reads as inactive and "not yet chosen".
+- The OS cursor is replaced by a drawn `+` crosshair so the sampled pixel is unambiguous — an OS arrow cursor has a hot point several pixels away from what it looks like it points at. The crosshair is drawn in the overlay, not as a cursor bitmap, so it stays pixel-exact across DPI scales.
+- Whatever is currently a capture candidate — the hovered window in `WindowHover`, the live rect in `Dragging` — is punched back out of the wash to full brightness.
+
+**The probe box (next to the crosshair).** A small panel that follows the crosshair with a fixed offset, flipping to the other side and clamping vertically near screen edges so it is never clipped or off-screen. Contents, top to bottom:
+
+| Line | Format | Notes |
+|---|---|---|
+| Coordinates | `LOC 1842,377` | Virtual-desktop pixel coordinates, so negative origins on left/above-primary monitors are reported honestly |
+| Hex | `HEX #3A7BD5` | Uppercase, hash included |
+| RGB | `RGB 58, 123, 213` | New requirement — same pixel as the hex line, never a rounded or re-quantized value |
+| Swatch | filled chip | The sampled color itself, so near-identical values are still distinguishable at a glance |
+
+- **Sampling source:** the already-decoded frozen frame buffer, never a fresh OS pixel read. The buffer exists anyway for the overlay, so the probe costs one array index and adds no capture latency.
+- **Copy semantics:** `C` copies the hex, `Shift+C` copies `rgb(58, 123, 213)`; either copies and dismisses the overlay, which makes the trigger double as a one-keystroke screen color picker with no separate mode.
+- **Physical vs. logical pixels:** the readout is physical by default with a preference toggle (§6.5); the label gains an `@2x`-style suffix when the two differ, so a Retina/scaled reading is never silently ambiguous.
+- **Magnifier loupe (P2):** an optional zoomed pixel-grid attached to the probe box for single-pixel targeting.
+
+**Window auto-detection.**
+- On cursor move, throttled to ~35 ms, hit-test the window at the crosshair's virtual-desktop point. The result is the highlight rect.
+- Detection re-runs across window boundaries, so moving from a browser to a terminal to a second window of the same app highlights each in turn — the rule is "whatever window owns this pixel", not "whichever app was foreground at trigger time".
+- Cache the last resolved rect and skip re-querying while the crosshair stays inside it; invalidate on exit. This keeps a slow hit-test off the hover path.
+- **A single left click captures the highlighted window.** No drag, no confirm step.
+- **Click-and-drag overrides detection** and captures the dragged region, whether that is part of one window, part of a display, or across several windows.
+- Per-platform hit-test: Windows `WindowFromPoint` plus `DwmGetWindowAttribute(DWMWA_EXTENDED_FRAME_BOUNDS)` so the invisible drop-shadow margin is excluded from the rect; macOS `CGWindowListCopyWindowInfo` in z-order; X11 `XQueryTree` plus `_NET_FRAME_EXTENTS`; Wayland has no client-visible window geometry, so detection reports unsupported and the overlay silently degrades to region-only (`supports()` = false, §5).
+- **Child-element detection (P2):** descend into the accessibility tree (UI Automation / AX / AT-SPI) so a toolbar, a chat bubble, or a table cell can be the highlight; hold a modifier to walk granularity between the element and its parent window.
+
+**Pointer and key contract.**
+
+| Input | Result |
+|---|---|
+| Move | Probe box updates; window highlight re-detects |
+| Left click (no drag) | Capture the highlighted window; nothing highlighted means no-op |
+| Left drag | Free region; `w × h` label tracks the rect |
+| Drag a handle after release | Resize the pending selection before confirming |
+| Drag inside the selection | Move the selection |
+| Arrow keys / `Shift`+arrows | Nudge the selection edge by 1 px / 10 px |
+| `Enter` | Confirm the current selection |
+| `Esc` / right-click | Cancel the whole capture session |
+| `C` / `Shift+C` | Copy hex / copy RGB and dismiss |
+
+**Multi-monitor and DPI.** The overlay is one surface spanning the entire virtual desktop, so a drag can start on one monitor and end on another. All coordinates are virtual-desktop pixels; per-display scale factors are applied only for presentation, never for the numbers in the probe box.
+
+**Budgets.** Overlay visible ≤ 60 ms after the hotkey (§13); probe box updates within one frame (≤ 16 ms); window detection resolves within ~40 ms of the cursor settling.
+
+**Implementation status (Windows, as of this revision).** Built in [ui/lib/features/capture/capture_selection_overlay.dart](ui/lib/features/capture/capture_selection_overlay.dart) with window hit-testing over the method channel in [ui/lib/services/windows_capture_window.dart](ui/lib/services/windows_capture_window.dart).
+
+| Element | Status |
+|---|---|
+| Dim wash over frozen frame | ✅ shipped |
+| `+` crosshair at cursor | ✅ shipped |
+| `LOC x,y` readout | ✅ shipped |
+| `HEX` readout + swatch | ✅ shipped |
+| **`RGB r,g,b` readout** | ✅ implemented; exact frozen-byte values covered by widget tests |
+| Hovered-window highlight | ✅ shipped, top-level windows only |
+| One-click window capture | ✅ shipped |
+| Drag region + handles + move | ✅ shipped |
+| Extended-frame-bounds trim on the highlight | ◐ implemented with DWM bounds and cloaked-window filtering; native QA pending |
+| `C` / `Shift+C` color copy | ✅ implemented; copies successfully before dismissing |
+| Per-display scale for the `@2x` suffix and logical units | ✅ implemented; the capture carries every display's bounds and `GetDpiForMonitor` scale, and the probe box and `w × h` label use the display under the cursor or selection centre; mixed-DPI native QA pending |
+| Magnifier loupe, child-element detection | ❌ P2 |
+
+### 8.9 Post-capture editing toolbar — the Quick HUD layout (spec)
+
+The bar that appears the moment a selection is confirmed. One dark, rounded, floating strip of icon buttons, divided into four groups by thin vertical rules. Left to right:
+
+| Group | Buttons (in order) | Purpose |
+|---|---|---|
+| **1 — Draw tools** | rectangle (filled), ellipse (outline), sticker, arrow, brush, mosaic, text | Mutually exclusive; selecting one arms the canvas and swaps the style sub-toolbar |
+| **2 — Content tools** | translate, extract text (OCR), scrolling/long capture | Act on the captured content rather than drawing on it |
+| **3 — Output** | undo (redo), save, pin to desktop, share/send | Produce something from the capture without ending the session |
+| **4 — Session** | cancel (red ✕), confirm (green ✓) | End the session — discard, or copy the annotated result to the clipboard |
+
+Group 2's third slot is the icon that §6.8.6 item 3 left unidentified in the WeChat reference pass. ProShottr assigns it to **scrolling capture** (§8.2), which is where a content-expanding action naturally belongs; it stays disabled until that feature lands rather than shipping as a dead button.
+
+**Style sub-toolbar.** Selecting a draw tool reveals the style controls inline (they replace each other, they do not stack):
+- Rectangle, ellipse, arrow, brush: three stroke-width presets (thin/medium/thick) plus the six-swatch palette — blue, green, yellow, grey, white, red.
+- Text: three font sizes (small/medium/large `A`) plus the same palette.
+- Mosaic: three brush sizes plus the **AI masking** toggle (§6.8.2), no palette.
+- Sticker: opens the picker panel — recents row, full grid, category tabs (§6.8.2) — rather than an inline swatch row.
+- The active preset and swatch both carry a highlight ring, so the armed state is readable without hovering.
+
+**Enable and disable rules.**
+- Translate and extract-text stay greyed until a content probe finds text-like content in the selection, mirroring WeChat (§6.8.3). Never offer OCR on a solid-color crop.
+- Undo greys on an empty command stack; redo greys when the stack head is current.
+- Save, pin, share, cancel and confirm are always live.
+- Every disabled button keeps its tooltip and explains *why* it is disabled, so a greyed control is never a dead end.
+
+**Anchoring and adaptive layout.**
+- Default position is centered under the selection with a small gap; it flips above when it would fall off the bottom, and clamps inside the display when the selection hugs an edge.
+- The bar never covers the selection. For a selection that fills the display, it floats inset over the bottom-right corner at reduced opacity.
+- **Narrow selections must not silently reposition** (§6.8.5). Below the bar's minimum comfortable width, groups collapse right-to-left into a "more tools" overflow flyout, in this order: content tools first, then output, and group 1 and group 4 are never collapsed. The bar stays anchored to the selection's horizontal center throughout.
+
+**Capture resolution badge.** The toolbar never appears alone — it arrives together with a small badge reading the captured region's pixel resolution, `1280 × 720`, drawn over the capture itself.
+- **Anchor:** the capture's top-left corner, sitting just outside the top edge so it does not cover pixels the user is about to annotate. When the capture hugs the top of the display, it flips to just inside that edge instead of being clipped.
+- **Units:** physical pixels of the actual captured raster — the number that will be in the exported file, not the on-screen layout size. It follows the physical/logical toggle (§6.5) and gains a scale suffix when the two differ, so a value on a scaled display is never ambiguous.
+- **Live:** it updates while the selection is resized or the image is cropped in the Quick HUD, and it survives the toolbar's overflow layout (§6.8.5) because it is anchored to the capture, not to the bar.
+- **Passive:** it is display-only and never takes pointer input, so a drag that starts on the badge still draws on the canvas underneath.
+
+**Keyboard map.** `R` rectangle, `E` ellipse, `A` arrow, `P` brush, `T` text, `M` mosaic, `S` sticker, `C` crop, `Shift+C` reset crop; `Ctrl+Z` undo, `Ctrl+Y` / `Ctrl+Shift+Z` redo; `Ctrl+S` save; `Ctrl+P` pin; `Ctrl+Enter` share; `Esc` cancel; `Enter` confirm-and-copy. Every button's tooltip shows its shortcut.
+
+**Crop.** Crop lives in the overflow menu rather than group 1, because it changes what the capture *is* rather than drawing on it. With the crop tool armed, a drag inside the capture shrinks the visible region; the un-dimmed area, the badge and the toolbar anchor all follow the crop, and the frozen desktop stays in place around it. A crop is a document property, not a raster edit: annotations keep their source-pixel coordinates, the step sits in the same undo/redo history as annotations, and a crop can only shrink until it is reset or undone. Copy, save, pin and share export exactly the crop's physical pixels.
+
+**Implementation status.** Built in [ui/lib/features/capture/quick_capture_view.dart](ui/lib/features/capture/quick_capture_view.dart) over the shared scene controller.
+
+| Element | Status |
+|---|---|
+| Group 1 — all seven draw tools, in this order | ✅ shipped |
+| Stroke/font/color sub-toolbars | ✅ shipped |
+| Sticker picker as a full panel (recents + categories) | ✅ implemented and widget-tested |
+| Mosaic AI-masking toggle | ◐ present with unavailable explanation; masking engine not implemented |
+| **Group 2 — translate, extract text, scrolling capture** | ◐ present with disabled explanations; content engines and text probe remain to build |
+| Undo / redo | ✅ shipped |
+| Save | ✅ shipped |
+| **Pin to desktop** | ◐ native PNG pin implemented; Dart export workflow tested; native QA pending |
+| **Share / send** | ✅ local chooser for copy/save; direct messaging and cloud destinations remain out of scope for this slice |
+| Group 4 — cancel, confirm-and-copy | ✅ shipped |
+| Group dividers matching the four-group layout | ✅ implemented |
+| Overflow flyout for narrow selections | ✅ content then output collapse, draw/session remain visible; widget-tested |
+| Capture resolution badge over the capture | ✅ shipped |
+| Crop tool: drag to shrink, undo/redo, reset, export = crop size | ✅ implemented and widget-tested; the badge, un-dimmed region and toolbar anchor follow the crop live |
+| Badge live-updates on crop, and honors the logical-px toggle | ✅ the badge tracks the pending and committed crop; Windows capture reports the per-monitor `GetDpiForMonitor` scale and a crop re-resolves its scale from the display list; mixed-DPI native QA pending |
+| Full keyboard map | ✅ implemented, including redo alternative, pin/share, crop, and Pro editor shortcut |
+
+### 8.10 Windowing model — the capture session is an overlay, never an app window
+
+A hard rule across §8.8 and §8.9: **from the moment the hotkey fires until the session ends, ProShottr must not present itself as an application window.** The capture overlay and the Quick HUD are one borderless, top-most surface painted over the frozen desktop. Anything that looks like the app "opening" — a taskbar button appearing, an Alt-Tab entry, a Dock bounce, a window frame, an entry in the app switcher or in Recents — is a defect, not a cosmetic detail. The user asked for a screenshot, not for an app.
+
+**What that forbids during a capture session:**
+- No taskbar button, Alt-Tab entry, Dock icon, pager entry, or Recents task.
+- No window chrome, title bar, shadow, or open/close animation.
+- No second process window, and no flash of the main editor window before or after the overlay.
+- No permanent focus theft: the overlay claims keyboard input while it is up, and on exit focus returns to whatever window was foreground when the hotkey fired, so the user's typing target is not moved out from under them.
+
+**What legitimately promotes to a real window** — each one is an explicit "I am going into editing" action, never an accident of the quick path:
+
+| Action | Result |
+|---|---|
+| Open the Pro editor | The main app window is shown, and the app becomes a normal windowed app for as long as it is open |
+| Extract text (OCR) | The OCR result window (§6.4), a real secondary surface |
+| Pin to desktop | A small always-on-top pin window (§8.5); the overlay itself dismisses |
+| Save | A system Save As dialog owned by the overlay — a system modal, not an app window |
+| Draw, restyle, undo/redo, copy, confirm, cancel, share | Nothing is promoted; the session stays an overlay and then disappears |
+
+**Per-platform mechanics.**
+
+| Platform | How the overlay stays out of the window list |
+|---|---|
+| **Windows** | `WS_POPUP` plus `WS_EX_TOOLWINDOW \| WS_EX_TOPMOST`, and explicitly **not** `WS_EX_APPWINDOW` — that flag forces a taskbar button onto a visible top-level window, and `WS_EX_TOOLWINDOW` is what keeps a window out of both the taskbar and the Alt-Tab list. The main editor window stays hidden for the whole session; the tray icon is the app's only persistent presence |
+| **macOS** | Borderless `NSPanel` at a floating/screen-saver level with `hidesOnDeactivate`; the app runs as an accessory (no Dock icon, no menu-bar takeover) during capture and is promoted to a regular activation policy only when the Pro editor opens |
+| **Linux / X11** | Override-redirect window with `_NET_WM_WINDOW_TYPE_UTILITY` and `_NET_WM_STATE_SKIP_TASKBAR` + `_NET_WM_STATE_SKIP_PAGER` |
+| **Linux / Wayland** | `wlr-layer-shell` on the overlay layer where available; otherwise the portal owns presentation and the rule is enforced by not opening a toplevel of our own |
+| **Android** | Overlay window over the capture via `SYSTEM_ALERT_WINDOW`; the capture activity is `excludeFromRecents` and `noHistory` so a capture never becomes a Recents card |
+
+**Acceptance checks** (these are the tests, not prose — they belong in the §14 platform matrix):
+1. Trigger the hotkey from a cold, tray-only app state: the taskbar button count is unchanged and the Alt-Tab list is unchanged while the overlay is up.
+2. Capture, annotate, confirm: the app's main window never becomes visible at any point, and the previously foreground app is foreground again afterwards.
+3. Cancel with `Esc`: same as above, and the app returns to tray-only.
+4. Open the Pro editor from the Quick HUD: *now* a taskbar button and Alt-Tab entry appear, exactly once.
+
+**Implementation status (Windows).** The runner already reuses the single Flutter host window, hides the editor before capture, and restores its prior placement and styles afterwards — [ui/windows/runner/flutter_window.cpp](ui/windows/runner/flutter_window.cpp).
+
+| Element | Status |
+|---|---|
+| One reused host window, editor hidden for the session | ✅ shipped |
+| `WS_POPUP` borderless top-most overlay over the virtual desktop | ✅ shipped |
+| Prior placement/styles restored on every exit path | ✅ shipped |
+| Tray-only presence when the editor was not open | ✅ shipped |
+| **Overlay excluded from taskbar and Alt-Tab** | ◐ implemented using `WS_EX_TOOLWINDOW`, without `WS_EX_APPWINDOW`; native acceptance check pending |
+| Focus returned to the previously foreground window on exit | ◐ implemented for normal exits; focus-loss exit preserves the newly selected app; native acceptance check pending |
+
+**Validation of this source revision:** Flutter 3.47.3 analysis is clean and all 37 behavioral tests pass, including the new crop, per-display scale, and cropped-export tests. The Rust core's 10 tests, `cargo fmt --check`, and `cargo clippy -D warnings` pass on the `x86_64-pc-windows-gnu` target (MSYS2 MinGW-w64), and the Flutter/Rust bridge was regenerated with `flutter_rust_bridge_codegen` 2.12.0 for the new `DisplayInfo` metadata. The native runner and Rust core compile with Visual Studio 2022 Build Tools (`flutter build windows --release`), and the installer was rebuilt from this source. The manual [desktop QA matrix](docs/windows-qa.md), including its new mixed-DPI and crop-export rows, has not been run yet.
 
 ---
 
@@ -475,9 +670,11 @@ Android uses MediaStore/scoped storage; desktop uses XDG/AppData/Application Sup
 
 ## 11. UI/UX Design
 
-- **Two-mode philosophy:**
-  - **Quick HUD** — tiny floating toolbar after capture (WeChat parity, verified spec §6.8): filled rect, outline ellipse, sticker picker, arrow, pen, text (3 sizes), mosaic (manual + AI-masking), undo, and a prominent **Send/Copy/Save/Pin**. Sub-second, keyboard-confirmable. Narrow-selection layout must degrade gracefully (§6.8.5) instead of silently repositioning.
+- **Three surfaces, in the order the user meets them:**
+  - **Capture overlay** — the dimmed frozen desktop with the `+` crosshair, the live `LOC` / `HEX` / `RGB` probe box, hover-to-highlight windows, click-to-capture, drag-for-region. Full spec in **§8.8**. This surface carries the precision affordances so there is no separate "color picker mode" for the common case.
+  - **Quick HUD** — the floating toolbar that appears once a selection is confirmed, together with the `W × H` resolution badge over the capture. Four groups (draw tools, content tools, output, session end) in one dark rounded bar. Full layout, ordering, enable/disable and overflow rules in **§8.9**. Sub-second, keyboard-confirmable; narrow-selection layout degrades into an overflow flyout (§6.8.5) instead of silently repositioning.
   - **Pro Editor** — full canvas with left tool rail, right inspector (style/opacity/stroke), top capture-mode bar, bottom status (dimensions, zoom, color). Shottr-depth.
+  - The first two are overlays, not app windows: a capture session shows no taskbar button and no Alt-Tab entry, and ProShottr becomes a windowed app only when the user deliberately opens an editing surface — **§8.10**.
 - **Design system:** one Flutter component library, platform-adaptive affordances (menus, traffic-light vs. min/max, touch targets on Android), light/dark, high-contrast, RTL-ready.
 - **Keyboard-first:** every tool has a shortcut; a discoverable shortcut cheatsheet (`?`). Full nudge/resize/grow selection shortcuts per Shottr.
 - **Touch adaptations (Android):** larger handles, long-press context, pinch-zoom canvas, bubble entry point.
@@ -505,7 +702,7 @@ Android uses MediaStore/scoped storage; desktop uses XDG/AppData/Application Sup
 
 | Metric | Target |
 |---|---|
-| Capture → editor visible (desktop) | ≤ 200 ms |
+| Capture → editor visible (desktop) | ≤ 100 ms |
 | Region overlay appear | ≤ 60 ms (frozen-frame trick) |
 | Idle memory (desktop) | ≤ 150 MB |
 | App/binary size (desktop) | as small as practical; core Rust keeps it lean |
@@ -522,6 +719,7 @@ Android uses MediaStore/scoped storage; desktop uses XDG/AppData/Application Sup
 - **UI (Flutter):** widget + golden tests for editor/toolbars; integration tests for capture→edit→export.
 - **Platform matrix CI:** GitHub Actions runners for Windows, macOS, Ubuntu (X11 **and** a Wayland session — Sway/GNOME/KDE), plus Android emulator + a physical-device lab for capture/overlay.
 - **Capability probes as tests:** assert `supports()` truth table per platform so regressions surface early.
+- **Windowing-model assertions (§8.10):** per desktop platform, assert that a capture session adds no taskbar button and no Alt-Tab/switcher entry, that the main window never becomes visible during the quick path, and that focus returns to the previously foreground window on exit. These are easy to regress with a one-line style change, so they belong in CI rather than in a manual pass.
 - **Manual test scripts** for permission flows (can't fully automate TCC/consent dialogs).
 - **Performance regression gates** on the budgets in §13.
 
@@ -549,8 +747,8 @@ Each phase has an explicit **exit criterion**. Ship desktop first (fastest path 
 - **Exit:** area-capture on **one** desktop OS → basic editor → copy/save, wired end-to-end through the bridge.
 
 ### Phase 1 — Desktop MVP (WeChat-parity core) — P0
-- Area/fullscreen capture, screen-freeze, live coordinate/color crosshair (§6.8.1), auto window-detect, Quick HUD, core annotations (filled box, outline ellipse, sticker picker, arrow, pen, text w/ 3 sizes, mosaic w/ manual+AI-masking, color, thickness, undo/redo — verified set per §6.8.2), crop, copy/save (WeChat-style prompt-with-smart-default-name), global hotkey — on **Windows + macOS**.
-- **Exit:** a person can capture, annotate, and copy/save/send in < 5 s on Win + macOS, matching the §6.8 tool-for-tool spec.
+- Area/fullscreen capture, screen-freeze, the full capture overlay per §8.8 (dim wash, `+` crosshair, `LOC`/`HEX`/**`RGB`** probe box, hover window-detect, one-click window capture, drag region), the full Quick HUD per §8.9 (four button groups incl. pin and share, the `W × H` resolution badge, overflow flyout, keyboard map), the §8.10 windowing rule (no taskbar/Alt-Tab presence for a capture session, focus returned on exit), core annotations (filled box, outline ellipse, sticker picker, arrow, pen, text w/ 3 sizes, mosaic w/ manual+AI-masking, color, thickness, undo/redo — verified set per §6.8.2), crop, copy/save (WeChat-style prompt-with-smart-default-name), global hotkey — on **Windows + macOS**.
+- **Exit:** a person can capture, annotate, and copy/save/send in < 5 s on Win + macOS, matching the §6.8 tool-for-tool spec, with §8.8 and §8.9 fully built rather than partially.
 
 ### Phase 2 — Linux + cross-desktop parity — P0/P1
 - X11 backend, then **Wayland** (portals/PipeWire + wlroots path), capability probes, per-compositor test matrix. Window capture w/ backdrop, delayed/repeat capture, hide-window-on-capture, pin-to-screen, custom hotkeys, notifications, i18n (en/zh).
@@ -624,7 +822,13 @@ Legend: ● planned · ◐ partial/degraded · ○ N/A for platform. Priority in
 | Delayed / repeat capture (P1) | ● | ● | ● | ● | ● |
 | Box (filled) /ellipse (outline) /arrow/pen/text (P0) | ● | ● | ● | ● | ● |
 | Sticker picker (recents + categories) (P2) | ● | ● | ● | ● | ● |
-| Live coordinate/color crosshair during selection (P1) | ● | ● | ● | ◐ | ○ |
+| Dimmed overlay + `+` crosshair on trigger (P0) | ● | ● | ● | ◐ | ○ |
+| Cursor probe box: LOC + HEX + RGB during selection (P0) | ● | ● | ● | ◐ | ○ |
+| One-click capture of the auto-detected window (P0) | ● | ● | ● | ○ | ○ |
+| Quick HUD four-group toolbar (§8.9) (P0) | ● | ● | ● | ● | ● |
+| Capture resolution badge over the capture (P0) | ● | ● | ● | ● | ● |
+| Capture session presents no app window (§8.10) (P0) | ● | ● | ● | ◐ | ● |
+| Quick HUD content-tool group: translate / OCR / scrolling (P2) | ● | ● | ● | ◐ | ◐ |
 | Mosaic/blur/erase (P0/P2) | ● | ● | ● | ● | ● |
 | AI-assisted mosaic auto-masking (P2) | ● | ● | ● | ◐ | ◐ |
 | Highlighter/spotlight/step (P1/P2) | ● | ● | ● | ● | ● |

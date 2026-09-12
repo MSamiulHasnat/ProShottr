@@ -7,8 +7,12 @@
 #include <flutter/standard_method_codec.h>
 
 #include <memory>
+#include <vector>
 
+#include "image_pin_window.h"
 #include "win32_window.h"
+
+struct IFileSaveDialog;
 
 // A window that does nothing but host a Flutter view.
 class FlutterWindow : public Win32Window {
@@ -40,6 +44,10 @@ class FlutterWindow : public Win32Window {
   void PrepareCaptureWindow();
   void ShowCaptureOverlay();
   void RestoreEditorWindow();
+  void RememberForegroundWindow();
+  void RequestCaptureCancellation(bool show_editor_after = false);
+  void SavePngAs(const std::vector<uint8_t>& bytes,
+                 flutter::MethodResult<flutter::EncodableValue>* result);
   flutter::EncodableValue WindowAtPoint(LONG x, LONG y);
 
   // The project to run.
@@ -53,10 +61,18 @@ class FlutterWindow : public Win32Window {
   LONG_PTR editor_style_ = 0;
   LONG_PTR editor_extended_style_ = 0;
   bool editor_window_saved_ = false;
+  bool editor_placement_saved_ = false;
   bool editor_was_visible_ = true;
   bool tray_icon_installed_ = false;
   bool capture_overlay_active_ = false;
+  bool capture_request_pending_ = false;
+  bool save_dialog_active_ = false;
+  IFileSaveDialog* active_save_dialog_ = nullptr;  // Borrowed during Show().
   bool exiting_ = false;
+  HWND previous_foreground_window_ = nullptr;
+  DWORD previous_foreground_process_ = 0;
+  UINT editor_show_command_ = SW_SHOWNORMAL;
+  std::vector<std::unique_ptr<ImagePinWindow>> image_pins_;
 };
 
 #endif  // RUNNER_FLUTTER_WINDOW_H_

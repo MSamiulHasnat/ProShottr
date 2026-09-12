@@ -9,6 +9,11 @@ enum EditorTool {
   pen,
   mosaic,
   text,
+
+  /// Drag to shrink the visible region of the capture. A crop is a document
+  /// property, not a raster edit: annotations keep their source coordinates
+  /// and the step is undoable.
+  crop,
 }
 
 class AnnotationStyle {
